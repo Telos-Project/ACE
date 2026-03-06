@@ -1,5 +1,5 @@
 var ace = {
-	getUtility: (item, path) => {
+	getUtilities: (item, path) => {
 
 		path = path != null ? path : [];
 
@@ -8,6 +8,18 @@ var ace = {
 		Object.keys(
 			item.utilities != null ? item.utilities : { }
 		).forEach(key => {
+
+			if(item.utilities[key].properties != null) {
+
+				if(Array.isArray(item.utilities[key].properties?.tags) ?
+					!item.utilities[key].properties.tags.includes(
+						"telos-ace"
+					) :
+					true) {
+
+					return;
+				}
+			}
 
 			components[
 				JSON.stringify(path.concat([key]))
@@ -18,7 +30,7 @@ var ace = {
 			item.packages != null ? item.packages : { }
 		).forEach(key => {
 			
-			Object.assign(components, ace.getUtility(
+			Object.assign(components, ace.getUtilities(
 				item.packages[key], path.concat([key])
 			));
 		});
@@ -45,7 +57,7 @@ var ace = {
 	operators: [],
 	processContext: (context) => {
 
-		let components = ace.getUtility(context.data);
+		let components = ace.getUtilities(context.data);
 
 		Object.keys(components).forEach(key => {
 
@@ -61,8 +73,8 @@ var ace = {
 			});
 		});
 
-		let dataComponents = ace.getUtility(context.data);
-		let objectComponents = ace.getUtility(context.objects);
+		let dataComponents = ace.getUtilities(context.data);
+		let objectComponents = ace.getUtilities(context.objects);
 
 		Object.keys(dataComponents).filter(
 			key => !Object.keys(objectComponents).includes(key)
