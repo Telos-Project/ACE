@@ -2,7 +2,7 @@
 
 ## 1 - Abstract
 
-***Game On!***
+***Write Once, Render Anywhere***
 
 ACE, or Telos ACE, is a [G-Scene](https://github.com/Telos-Project/APInt?tab=readme-ov-file#231---g-scene)
 based game engine content format, with associated adapters for certain game engines.
