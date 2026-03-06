@@ -12,9 +12,11 @@ ace.operators = [
 			let camera = new (
 				data.properties?.info?.type != null ?
 					{
-						"free": BABYLON.FreeCamera
+						"fly": BABYLON.FlyCamera,
+						"free": BABYLON.FreeCamera,
+						"universal": BABYLON.UniversalCamera
 					}[data.properties.info.type] :
-					BABYLON.FreeCamera
+					BABYLON.UniversalCamera
 			)(
 				JSON.stringify(path), 
 				Array.isArray(data.properties?.info?.position) ?
@@ -134,6 +136,28 @@ ace.operators = [
 			return {
 				type: "ground",
 				object: ground
+			};
+		}
+	},
+	{ // audio
+		onCreate: (context, path, data) => {
+
+			if(Array.isArray(data.properties?.tags) ?
+				data.properties?.tags[0] != "audio" : true) {
+
+				return;
+			}
+	
+			let audio = new Audio(data.source);
+
+			audio.loop = data.properties?.info?.loop != null ?
+				data.properties?.info?.loop : true;
+
+			audio.play();
+
+			return {
+				type: "audio",
+				object: audio
 			};
 		}
 	}

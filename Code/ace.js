@@ -187,6 +187,8 @@ var ace = {
 			data
 		};
 
+		context.meta.anchor.scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
 		engine.runRenderLoop(() => {
 
 			ace.processContext(context);
