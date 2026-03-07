@@ -84,7 +84,7 @@ var ace = {
 
 			let item = {
 				type: "",
-				content: null
+				object: null
 			};
 
 			ace.operators.filter(

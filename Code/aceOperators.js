@@ -266,5 +266,41 @@ ace.operators = [
 				object: physics
 			};
 		}
+	},
+	{ // script
+		onCreate: (context, path, data) => {
+
+			if(Array.isArray(data.properties?.tags) ?
+				data.properties?.tags[0] != "script" : true) {
+
+				return;
+			}
+
+			return {
+				type: "script",
+				object: new Function(data.content)
+			};
+		},
+		onUpdate: (context, path, data) => {
+
+			if(data.object.type != "script")
+				return;
+
+			let settings = data.data;
+
+			let mode = settings.properties?.info?.mode.toLowerCase();
+			let language = settings.properties?.info?.language.toLowerCase();
+
+			if(mode == "json") {
+
+				if(language == "js") {
+
+					context.data = JSON.parse(data.object.object(
+						JSON.stringify(context.data),
+						JSON.stringify(path)
+					))
+				}
+			}
+		}
 	}
 ];
