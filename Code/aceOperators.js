@@ -36,6 +36,7 @@ ace.operators = [
 			);
 
 			camera.attachControl(context.meta.anchor.scene, true);
+			camera.speed = 0.25;
 
 			return {
 				type: "camera",
@@ -101,6 +102,18 @@ ace.operators = [
 					...data.properties.info.position
 				);
 			}
+			
+			if(data.properties?.info?.mass != null) {
+
+				sphere.physicsImpostor = new BABYLON.PhysicsImpostor(
+					sphere,
+					BABYLON.PhysicsImpostor.SphereImpostor,
+					{
+						mass: data.properties.info.mass
+					},
+					context.meta.anchor.scene
+				);
+			}
 
 			return {
 				type: "sphere",
@@ -132,6 +145,18 @@ ace.operators = [
 					...data.properties.info.position
 				);
 			}
+			
+			if(data.properties?.info?.mass != null) {
+
+				ground.physicsImpostor = new BABYLON.PhysicsImpostor(
+					ground,
+					BABYLON.PhysicsImpostor.BoxImpostor,
+					{
+						mass: data.properties.info.mass
+					},
+					context.meta.anchor.scene
+				);
+			}
 
 			return {
 				type: "ground",
@@ -158,6 +183,87 @@ ace.operators = [
 			return {
 				type: "audio",
 				object: audio
+			};
+		}
+	},
+	{ // model
+		onCreate: (context, path, data) => {
+
+			if(Array.isArray(data.properties?.tags) ?
+				data.properties?.tags[0] != "model" : true) {
+
+				return;
+			}
+
+			let model = { };
+			
+			BABYLON.SceneLoader.ImportMeshAsync(
+				"",
+				data.source.substring(0, data.source.lastIndexOf("/") + 1),
+				data.source.substring(data.source.lastIndexOf("/") + 1),
+				context.meta.anchor.scene
+			).then(content => {
+
+				model.root = content.meshes[0];
+				
+				if(data.properties?.info?.position) {
+
+					content.meshes[0].position = new BABYLON.Vector3(
+						...data.properties.info.position
+					);
+				}
+				
+				if(data.properties?.info?.mass != null) {
+
+					content.meshes.slice(0, 1).forEach(mesh => {
+
+						mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
+							mesh,
+							BABYLON.PhysicsImpostor.MeshImpostor,
+							{
+								mass: (
+									data.properties.info.mass /
+									content.meshes.length
+								)
+							},
+							context.meta.anchor.scene
+						);
+					});
+				}
+			});
+
+			return {
+				type: "model",
+				object: model
+			};
+		}
+	},
+	{ // physics
+		onCreate: (context, path, data) => {
+
+			if(Array.isArray(data.properties?.tags) ?
+				data.properties?.tags[0] != "physics" : true) {
+
+				return;
+			}
+
+			let physics = {
+				vector: new BABYLON.Vector3(
+					...(
+						Array.isArray(data.properties?.info?.direction) ?
+							data.properties?.info?.direction : [0, 0, 0]
+					)
+				),
+				plugin: new BABYLON.CannonJSPlugin()
+			};
+			
+			context.meta.anchor.scene.enablePhysics(
+				physics.vector, physics.plugin
+			);
+
+			return {
+				type: "physics",
+				object: physics
 			};
 		}
 	}

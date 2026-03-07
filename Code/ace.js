@@ -63,7 +63,7 @@ var ace = {
 
 			ace.operators.filter(
 				operator => operator.onProcess != null
-			).forEach(operator => {
+			).forEach((operator) => {
 
 				operator.onProcess(
 					context.data,
@@ -89,7 +89,7 @@ var ace = {
 
 			ace.operators.filter(
 				operator => operator.onCreate != null
-			).forEach(operator => {
+			).forEach((operator) => {
 
 				Object.assign(
 					item,
@@ -192,7 +192,7 @@ var ace = {
 		engine.runRenderLoop(() => {
 
 			ace.processContext(context);
-
+			
 			context.meta.anchor.scene.render();
 		});
 		
