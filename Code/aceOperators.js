@@ -37,6 +37,8 @@ ace.operators = [
 
 			camera.attachControl(context.meta.anchor.scene, true);
 			camera.speed = 0.25;
+			
+			context.meta.anchor.scene.createDefaultXRExperienceAsync();
 
 			return {
 				type: "camera",
