@@ -31,3 +31,17 @@ shall specify the code of the script, and a "language" data point specifying the
 string.
 
 The code shall be written as an [OQL Agnostic Script](https://github.com/Telos-Project/OmniQuery?tab=readme-ov-file#21136---agnostic-scripts).
+
+### 2.3 - Dynamic Declarative Simuation Pipeline
+
+The Dynamic Declarative Simuation Pipeline (DDSP) is a process where a declarative document, called
+the simulation reference, details the entities present in a simulation, and on each cycle of the
+simulation engine, an AI updates the content of the simulation reference to advance the state based
+on codified conventions called simulation update conventions, and then renders views of the content
+of the simulation based on codified conventions called simulation rendering conventions.
+
+Simulation update and rendering conventions may themselves be encoded within simulation references.
+
+#### 2.3.1 - ACE Simulation Documents
+
+ACE may be used for simulation documents.
