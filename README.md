@@ -36,11 +36,15 @@ The code shall be written as an [OQL Agnostic Script](https://github.com/Telos-P
 
 The Dynamic Declarative Simuation Pipeline (DDSP) is a process where a declarative document, called
 the simulation reference, details the entities present in a simulation, and on each cycle of the
-simulation engine, an AI updates the content of the simulation reference to advance the state based
-on codified conventions called simulation update conventions, and then renders views of the content
-of the simulation based on codified conventions called simulation rendering conventions.
+simulation engine, an AI updates the content of the simulation reference to advance the state, a
+process which may base itself on codified conventions called simulation update conventions, and
+then renders views of the content of the simulation based on codified conventions called simulation
+rendering conventions.
 
 Simulation update and rendering conventions may themselves be encoded within simulation references.
+
+Additionally, DDSP may be used to graft world models via scaffolding onto AI processes that are
+powered by otherwise stateless AI models.
 
 #### 2.3.1 - ACE Simulation Documents
 
