@@ -65,8 +65,18 @@ Entity `meta.state`:
 
 Entities with `space: "screen"` interpret position as normalized viewport coordinates, with
 [0,0] at the lower-left and [1,1] at the upper-right, and z as sort order. Entities with
-`space: "camera"` are positioned relative to the active camera. Both are the mechanism by which
-2D interfaces and heads-up displays are expressed; there is no separate interface component family.
+`space: "camera"` are positioned in the active camera's frame, in metres, so an entity at
+[0, -0.34, -1] sits one metre ahead of the view and slightly below its centre. Both are the
+mechanism by which 2D interfaces and heads-up displays are expressed; there is no separate
+interface component family.
+
+A camera-space entity is resolved against the active camera's *entity*, not against the camera
+object, so that it inherits the document's forward axis rather than the engine's. Its descendants
+follow it as they would anywhere else.
+
+Text drawn in camera space is how a document presents a heads-up display. Adapters shall not
+require a host to overlay one, since an element drawn above the rendering surface intercepts the
+pointer events the document needs.
 
 The engine writes the simulated pose of a physically driven entity to `meta.state`, never to
 `meta.data`. Writing to `meta.data.position` or `meta.data.rotation` on an entity carrying a
@@ -83,6 +93,15 @@ it. Adapters shall not attempt to compose a simulated pose with an authored pare
 
 **Coordinates.** Right-handed, Y-up, -Z forward. Adapters targeting left-handed engines shall
 convert at the boundary.
+
+Forward is -Z for every component that has a facing: a camera looks along its entity's -Z, a
+directional light shines along it, and a spot light points along it. Where the underlying engine
+disagrees — and camera conventions frequently do — the adapter shall correct for it rather than
+leaving the document to compensate. A camera and a light on the same entity must face the same way,
+and a control scheme derived from the document's forward axis must not read inverted.
+
+Rotation about +Y follows the right-hand rule, so increasing yaw turns from -Z toward -X, which is
+a turn to the left. Increasing pitch, a rotation about +X, tilts the view up.
 
 **Units.** Distance in meters, mass in kilograms, time in seconds, angles in radians, force in
 newtons.
@@ -196,7 +215,7 @@ Pose comes from the containing entity. A document with no enabled camera renders
 | size | number | 10 | Vertical extent in meters, orthographic only |
 | near | number | 0.1 | |
 | far | number | 1000 | |
-| target | vec3 \| reference | — | Look-at point or entity. Overrides entity rotation while present |
+| target | vec3 \| reference | — | World-space look-at point or entity. Overrides entity rotation while present |
 | control | string | "none" | "none", "orbit", "fly", "first-person" — built-in navigation |
 | speed | number | 1 | Movement rate for built-in navigation, m/s |
 | viewport | vec4 | [0,0,1,1] | Normalized region of the display to render into |

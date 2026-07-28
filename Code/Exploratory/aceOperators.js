@@ -250,6 +250,28 @@
 			instance.object.texture : null;
 	};
 
+	/*
+
+		The entity node the active camera hangs off. Camera-space entities are
+		parented to it rather than to the camera, so that they inherit the
+		document's forward axis rather than Babylon's.
+
+	*/
+	const viewNode = context => {
+
+		let active = context.meta.scene.activeCamera;
+
+		if(active == null)
+			return null;
+
+		let record = context.resolved.components.find(candidate =>
+			candidate.type === "camera" &&
+			context.instances[ace.identity(candidate)]?.object?.camera === active
+		);
+
+		return record != null ? context.meta.nodes[record.entityKey] : null;
+	};
+
 	// ---------------------------------------------------------------- physics
 
 	/*
@@ -587,11 +609,31 @@
 					scene
 				);
 
-				camera.parent = node;
+				/*
+
+					Standard 2.2.3 puts forward on -Z, and the light operator
+					already aims along the entity's -Z. A Babylon camera looks
+					along +Z, and in a right-handed scene its own rotation
+					property does not reach its world matrix, so the correction
+					is carried by a pivot between the entity and the camera.
+
+					Without it a camera and a light on the same entity face
+					opposite ways, and every control scheme reads inverted.
+
+				*/
+				let pivot = new BABYLON.TransformNode(
+					instance.path.join(".") + ".pivot", scene
+				);
+
+				pivot.parent = node;
+				pivot.rotationQuaternion =
+					BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, Math.PI);
+
+				camera.parent = pivot;
 				camera.minZ = data.near != null ? data.near : 0.1;
 				camera.maxZ = data.far != null ? data.far : 1000;
 
-				let object = { camera, attached: false, xr: null };
+				let object = { camera, pivot, node, attached: false, xr: null };
 
 				operators[1].apply(context, instance, object);
 
@@ -641,8 +683,24 @@
 
 				camera.speed = data.speed != null ? data.speed : 1;
 
-				if(Array.isArray(data.target))
-					camera.setTarget(vector(data.target));
+				/*
+
+					A target is a world-space point, but Babylon aims a parented
+					camera in its parent's frame, so the point is carried into
+					pivot space first. Passing world coordinates straight
+					through aims the camera at nothing in particular as soon as
+					its entity is not at the origin.
+
+				*/
+				if(Array.isArray(data.target)) {
+
+					object.pivot.computeWorldMatrix(true);
+
+					camera.setTarget(BABYLON.Vector3.TransformCoordinates(
+						vector(data.target),
+						BABYLON.Matrix.Invert(object.pivot.getWorldMatrix())
+					));
+				}
 
 				let control = data.control != null ? data.control : "none";
 
@@ -746,6 +804,9 @@
 					instance.object.xr.dispose();
 
 				instance.object.camera.dispose();
+
+				if(instance.object.pivot != null)
+					instance.object.pivot.dispose();
 			}
 		},
 
@@ -2977,6 +3038,22 @@
 					).clone();
 
 				} else {
+
+					/*
+
+						A camera-space entity rides the view. Its transform is
+						read in the active camera's frame, which is how a
+						heads-up display is expressed without a separate
+						component family.
+
+					*/
+					if(data.space === "camera" || data.space === "screen") {
+
+						let view = viewNode(context);
+
+						if(view != null && view !== node && node.parent !== view)
+							node.parent = view;
+					}
 
 					/*
 
