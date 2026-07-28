@@ -110,8 +110,9 @@ newtons.
 string in "#rrggbb" or "#rrggbbaa" form representing sRGB. Adapters shall accept both.
 
 **Sources.** Wherever a component takes a `source`, APInt 2.1.2 permits a list of locations in
-order of preference. Adapters shall try each in turn and report failure only when every candidate
-has failed. This is the mechanism by which a document depending on third-party asset hosts degrades
+order of preference. Adapters shall try each in turn, on the basis of whether a location can be
+reached rather than on what its file extension suggests, and report failure only when every
+candidate has failed. The component's state shall record which candidate succeeded. This is the mechanism by which a document depending on third-party asset hosts degrades
 rather than breaks, and adapters shall implement it for every component that loads an asset, not
 only for models.
 
@@ -504,7 +505,9 @@ Sound, from `source` or `content`.
 | playing | boolean | |
 | time | number | Current playback position |
 | duration | number | |
-| blocked | boolean | Playback is awaiting a user gesture |
+| blocked | boolean | Playback is awaiting a user gesture, or no audio engine exists yet |
+| source | string | Which candidate location was actually loaded |
+| error | string | Why nothing is playing, when nothing is playing |
 
 ### 2.3.12 - animation
 

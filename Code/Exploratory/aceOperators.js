@@ -228,6 +228,129 @@
 
 	/*
 
+		Beginning playback needs an audio engine, and a host may not have built
+		one by the time a document is first resolved. Absence is therefore a
+		condition to wait on rather than a permanent failure: the state reports
+		why nothing is playing, and clears itself if an engine turns up.
+
+	*/
+	const beginAudio = (context, instance, object) => {
+
+		if(object.started || object.disposed)
+			return;
+
+		let data = instance.data;
+
+		let sources = (
+			Array.isArray(instance.source) ?
+				instance.source : [instance.source]
+		).filter(candidate => typeof candidate === "string");
+
+		if(sources.length === 0) {
+
+			object.started = true;
+
+			ace.setState(context, instance.record, {
+				loaded: false,
+				playing: false,
+				error: "audio has no source"
+			});
+
+			return;
+		}
+
+		if(BABYLON.Sound == null || audioEngine() == null) {
+
+			ace.setState(context, instance.record, {
+				loaded: false,
+				playing: false,
+				blocked: true,
+				error: "no audio engine is available"
+			});
+
+			return;
+		}
+
+		object.started = true;
+
+		ace.setState(context, instance.record, {
+			loaded: false,
+			playing: false,
+			error: null
+		});
+
+		/*
+
+			Babylon accepts a list of locations but chooses between them on file
+			extension, not on whether they can be reached, so it never falls
+			back from a location that fails. Fetching the data here gives the
+			list the meaning APInt 2.1.2 assigns it, and turns a failure into a
+			reported error rather than silence.
+
+		*/
+		const attempt = index => {
+
+			if(object.disposed)
+				return;
+
+			if(index >= sources.length) {
+
+				ace.setState(context, instance.record, {
+					loaded: false,
+					playing: false,
+					error: "all sources failed"
+				});
+
+				return;
+			}
+
+			let source = sources[index];
+
+			Promise.resolve(fetch(source)).then(response => {
+
+				if(!response.ok)
+					throw new Error("HTTP " + response.status);
+
+				return response.arrayBuffer();
+
+			}).then(buffer => {
+
+				if(object.disposed)
+					return;
+
+				object.sound = new BABYLON.Sound(
+					instance.path.join("."),
+					buffer,
+					context.meta.scene,
+					() => {
+
+						ace.setState(context, instance.record, {
+							loaded: true,
+							source,
+							duration: object.sound.getAudioBuffer?.()?.duration
+						});
+					},
+					{
+						loop: data.loop === true,
+						autoplay: data.autoplay === true,
+						volume: data.volume != null ? data.volume : 1,
+						spatialSound: data.spatial === true,
+						maxDistance: Array.isArray(data.distance) ?
+							data.distance[1] : 100
+					}
+				);
+
+				if(data.spatial === true)
+					object.sound.attachToMesh(nodeFor(context, instance.entity));
+
+			}).catch(() => attempt(index + 1));
+		};
+
+		attempt(0);
+	};
+
+	/*
+
 		Resolves a texture reference — an APInt element path — to the live
 		Babylon texture, or null while it is still pending.
 
@@ -270,6 +393,34 @@
 		);
 
 		return record != null ? context.meta.nodes[record.entityKey] : null;
+	};
+
+	/* Babylon exposes the audio engine statically, on different classes by version. */
+	const audioEngine = () =>
+		BABYLON.Engine?.audioEngine != null ? BABYLON.Engine.audioEngine :
+		BABYLON.AbstractEngine?.audioEngine != null ?
+			BABYLON.AbstractEngine.audioEngine : null;
+
+	/*
+
+		Browsers start an audio context suspended and will not resume it except
+		from inside a user gesture. Babylon's own remedy is to inject a button
+		over the rendering surface, which is precisely the kind of overlay that
+		swallows the events a document needs, so it is turned off and the
+		unlocking is done here instead.
+
+	*/
+	const unlockAudio = () => {
+
+		let engine = audioEngine();
+
+		if(engine == null || engine.unlocked)
+			return;
+
+		engine.useCustomUnlockedButton = true;
+
+		if(typeof engine.unlock === "function")
+			engine.unlock();
 	};
 
 	// ---------------------------------------------------------------- physics
@@ -2271,62 +2422,11 @@
 
 			onCreate: (context, instance) => {
 
-				let data = instance.data;
-				let object = { sound: null, blocked: false };
+				let object = {
+					sound: null, disposed: false, started: false
+				};
 
-				let sources = (
-					Array.isArray(instance.source) ?
-						instance.source : [instance.source]
-				).filter(candidate => typeof candidate === "string");
-
-				/* Babylon accepts a list and falls through it in order. */
-				let source = sources.length > 1 ? sources : sources[0];
-
-				if(sources.length === 0 || BABYLON.Sound == null) {
-
-					ace.setState(context, instance.record, {
-						loaded: false,
-						playing: false
-					});
-
-					return object;
-				}
-
-				try {
-
-					object.sound = new BABYLON.Sound(
-						instance.path.join("."),
-						source,
-						context.meta.scene,
-						() => ace.setState(context, instance.record, {
-							loaded: true,
-							duration: object.sound.getAudioBuffer?.()?.duration
-						}),
-						{
-							loop: data.loop === true,
-							autoplay: data.autoplay === true,
-							volume: data.volume != null ? data.volume : 1,
-							spatialSound: data.spatial === true,
-							maxDistance: Array.isArray(data.distance) ?
-								data.distance[1] : 100
-						}
-					);
-
-					if(data.spatial === true) {
-
-						object.sound.attachToMesh(
-							nodeFor(context, instance.entity)
-						);
-					}
-
-				} catch(error) {
-
-					ace.setState(context, instance.record, {
-						loaded: false,
-						playing: false,
-						error: error.message
-					});
-				}
+				beginAudio(context, instance, object);
 
 				return object;
 			},
@@ -2355,6 +2455,9 @@
 				if(sound == null)
 					return;
 
+				/* Playback is impossible while the engine is still locked. */
+				unlockAudio();
+
 				if(field === "play") {
 
 					sound.play(0, typeof value === "number" ? value : 0);
@@ -2372,20 +2475,30 @@
 
 			onUpdate: (context, instance) => {
 
+				/* An engine that arrives late is still an engine. */
+				if(!instance.object.started) {
+
+					beginAudio(context, instance, instance.object);
+
+					return;
+				}
+
 				let sound = instance.object.sound;
 
 				if(sound == null)
 					return;
 
+				let engine = audioEngine();
+
 				ace.setState(context, instance.record, {
 					playing: sound.isPlaying === true,
-					blocked: context.meta.gesture === false &&
-						instance.data.autoplay === true &&
-						sound.isPlaying !== true
+					blocked: engine != null && engine.unlocked === false
 				});
 			},
 
 			onDestroy: (context, instance) => {
+
+				instance.object.disposed = true;
 
 				if(instance.object.sound != null) {
 
@@ -2662,7 +2775,12 @@
 			const on = (name, handler) =>
 				target.addEventListener(name, handler);
 
-			const gesture = () => { input.gesture = true; };
+			const gesture = () => {
+
+				input.gesture = true;
+
+				unlockAudio();
+			};
 
 			on("keydown", event => {
 
@@ -2851,6 +2969,13 @@
 		input,
 		operators,
 
+		/* Passed to any engine the adapter builds for itself. */
+		engineOptions: {
+			audioEngine: true,
+			preserveDrawingBuffer: true,
+			stencil: true
+		},
+
 		onSync: context => {
 
 			let now = typeof performance !== "undefined" ?
@@ -2861,6 +2986,22 @@
 
 			context.meta.clock = now;
 			context.meta.gesture = input.gesture;
+
+			/*
+
+				Suppress Babylon's unmute overlay before it can be shown, and
+				take any chance to resume a context the browser suspended.
+
+			*/
+			let audio = audioEngine();
+
+			if(audio != null) {
+
+				audio.useCustomUnlockedButton = true;
+
+				if(input.gesture && !audio.unlocked)
+					unlockAudio();
+			}
 
 			let scale = context.meta.timeScale != null ?
 				context.meta.timeScale : 1;
@@ -3255,7 +3396,19 @@
 				if(options.canvas != null) {
 
 					canvas = options.canvas;
-					engine = new BABYLON.Engine(canvas, true);
+
+					/*
+
+						audioEngine is opt-in and has no default, so Babylon
+						creates no audio engine at all unless it is asked. A
+						document with an audio component then reports that none
+						is available, which is accurate and entirely the host's
+						fault.
+
+					*/
+					engine = new BABYLON.Engine(
+						canvas, true, adapter.engineOptions, true
+					);
 
 				} else {
 
