@@ -272,8 +272,13 @@ it is a binary buffer whose layout is declared by `data.layout`.
 the vertical range, and `segments` the tessellation. The heights come either from a greyscale image
 at `source`, or from `content` — as a string, JSON of the form `{ heights, resolution }` where each
 height is a number in [0,1]; as a number array, raw RGBA samples whose grid is declared by
-`data.resolution`. The two forms produce identical geometry, so a document authored against a
-remote image can be tested against generated heights.
+`data.resolution`. Columns run along +X and rows along -Z in every form, so the same terrain is
+described whichever is used, and a document authored against a remote image can be tested against
+generated heights.
+
+Numeric heights shall be used at the precision given. Passing them through an eight bit image
+buffer quantises them to 256 levels, which on a gentle grade is coarse enough to change the slope
+the surface reports and anything a document derives from it.
 
 **data**
 
@@ -584,6 +589,10 @@ component after writing the result.
 | Field | Type | Meaning |
 |---|---|---|
 | hits | object[] | `{ target, point, normal, distance }`, nearest first |
+
+`normal` is the surface normal at the point struck, in world space. A document reads the gradient
+along a horizontal heading **d** from it as `-(d.x * n.x + d.z * n.z) / n.y`, which is what makes a
+surface-relative rate of travel expressible without the adapter knowing anything about walking.
 
 For `type: "overlap"`, every entity within the radius is answered rather than those along a line.
 `point` is the nearest point on the other body, `distance` is how far that lies from the query

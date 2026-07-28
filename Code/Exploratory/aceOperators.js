@@ -1483,12 +1483,23 @@
 
 						let mesh = new BABYLON.Mesh(name, scene);
 
-						BABYLON.VertexData.CreateGroundFromHeightMap(
-							Object.assign({ }, options, {
-								buffer: samples.buffer,
-								bufferWidth: samples.width,
-								bufferHeight: samples.height
-							})
+						/*
+
+							Heights given as numbers are used as given. Routing
+							them through an image buffer would quantise them to
+							256 levels, which on a gentle grade is coarse enough
+							to change the slope the surface reports.
+
+						*/
+						(samples.heights != null ?
+							operators[5].heightfield(samples, options) :
+							BABYLON.VertexData.CreateGroundFromHeightMap(
+								Object.assign({ }, options, {
+									buffer: samples.buffer,
+									bufferWidth: samples.width,
+									bufferHeight: samples.height
+								})
+							)
 						).applyToMesh(mesh);
 
 						mesh.parent = node;
@@ -1711,21 +1722,96 @@
 					return null;
 				}
 
-				let width = parsed.resolution[0];
-				let height = parsed.resolution[1];
-				let buffer = new Uint8Array(width * height * 4);
+				return {
+					heights: parsed.heights,
+					width: parsed.resolution[0],
+					height: parsed.resolution[1]
+				};
+			},
 
-				parsed.heights.forEach((value, index) => {
+			/*
 
-					let sample = Math.max(0, Math.min(255, Math.round(value * 255)));
+				A height grid built directly from numbers. Columns run along +X
+				and rows along -Z, matching the orientation an image heightmap
+				is sampled with, so both forms describe the same terrain.
 
-					buffer[index * 4] = sample;
-					buffer[index * 4 + 1] = sample;
-					buffer[index * 4 + 2] = sample;
-					buffer[index * 4 + 3] = 255;
-				});
+			*/
+			heightfield: (samples, options) => {
 
-				return { buffer, width, height };
+				let width = samples.width;
+				let depth = samples.height;
+				let heights = samples.heights;
+				let steps = Math.max(1, Math.round(options.subdivisions));
+
+				const at = (column, row) => heights[
+					Math.min(Math.max(row, 0), depth - 1) * width +
+					Math.min(Math.max(column, 0), width - 1)
+				];
+
+				const sample = (u, v) => {
+
+					let x = u * (width - 1);
+					let y = v * (depth - 1);
+					let column = Math.floor(x);
+					let row = Math.floor(y);
+					let fx = x - column;
+					let fy = y - row;
+
+					return (
+						at(column, row) * (1 - fx) + at(column + 1, row) * fx
+					) * (1 - fy) + (
+						at(column, row + 1) * (1 - fx) +
+						at(column + 1, row + 1) * fx
+					) * fy;
+				};
+
+				let rise = options.maxHeight - options.minHeight;
+				let positions = [];
+				let uvs = [];
+				let indices = [];
+
+				for(let row = 0; row <= steps; row++) {
+
+					for(let column = 0; column <= steps; column++) {
+
+						let u = column / steps;
+						let v = row / steps;
+
+						positions.push(
+							(u - 0.5) * options.width,
+							options.minHeight + rise * sample(u, v),
+							options.height / 2 - v * options.height
+						);
+
+						uvs.push(u, 1 - v);
+					}
+				}
+
+				for(let row = 0; row < steps; row++) {
+
+					for(let column = 0; column < steps; column++) {
+
+						let a = row * (steps + 1) + column;
+						let b = a + 1;
+						let c = a + steps + 1;
+						let d = c + 1;
+
+						indices.push(a, b, c, b, d, c);
+					}
+				}
+
+				let normals = [];
+
+				BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+
+				let data = new BABYLON.VertexData();
+
+				data.positions = positions;
+				data.indices = indices;
+				data.normals = normals;
+				data.uvs = uvs;
+
+				return data;
 			},
 
 			decode: (bytes, layout) => {
