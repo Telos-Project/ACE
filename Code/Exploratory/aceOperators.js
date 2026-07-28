@@ -188,6 +188,31 @@
 		return node;
 	};
 
+	/*
+
+		A mesh carrying a body is lifted out of its entity's transform node, so
+		parent-walking cannot recover which entity it belongs to. Ownership is
+		recorded on the mesh itself instead, which survives reparenting.
+
+	*/
+	const own = (mesh, entityKey) => {
+
+		if(mesh == null)
+			return mesh;
+
+		[mesh].concat(
+			mesh.getChildMeshes != null ? mesh.getChildMeshes() : []
+		).forEach(target => {
+
+			target.metadata = Object.assign(
+				target.metadata != null ? target.metadata : { },
+				{ aceEntity: entityKey }
+			);
+		});
+
+		return mesh;
+	};
+
 	const recordFor = (context, entityKey, type) =>
 		context.resolved.components.find(record =>
 			record.type === type && record.entityKey === entityKey
@@ -199,6 +224,30 @@
 
 		return record != null ?
 			context.instances[ace.identity(record)] : null;
+	};
+
+	/*
+
+		Resolves a texture reference — an APInt element path — to the live
+		Babylon texture, or null while it is still pending.
+
+	*/
+	const resolveTexture = (context, path) => {
+
+		let element = ace.getElement(context.data, path);
+
+		if(element == null)
+			return null;
+
+		let record = context.resolved.components.find(
+			candidate => candidate.key === ace.pathKey(element.path)
+		);
+
+		let instance = record != null ?
+			context.instances[ace.identity(record)] : null;
+
+		return instance != null && instance.object != null ?
+			instance.object.texture : null;
 	};
 
 	// ---------------------------------------------------------------- physics
@@ -223,7 +272,8 @@
 		convex: BABYLON.PhysicsImpostor.ConvexHullImpostor != null ?
 			BABYLON.PhysicsImpostor.ConvexHullImpostor :
 			BABYLON.PhysicsImpostor.MeshImpostor,
-		mesh: BABYLON.PhysicsImpostor.MeshImpostor
+		mesh: BABYLON.PhysicsImpostor.MeshImpostor,
+		heightmap: BABYLON.PhysicsImpostor.HeightmapImpostor
 	});
 
 	const rebuildImpostor = (context, entityKey) => {
@@ -274,6 +324,18 @@
 
 		/*
 
+			Geometry loaded from a location arrives after the mesh does:
+			CreateGroundFromHeightMap and the model importers both return an
+			empty mesh and fill it in later. Building a shape from it now would
+			hand the solver a null vertex buffer, so the impostor is deferred
+			and the collider retries once the geometry lands.
+
+		*/
+		if(mesh.getTotalVertices != null && mesh.getTotalVertices() === 0)
+			return null;
+
+		/*
+
 			A Babylon V1 impostor cannot sit beneath a parent that has no
 			impostor of its own, and entity transform nodes never have one. The
 			collision mesh is therefore lifted into world space and the entity
@@ -312,8 +374,11 @@
 			producing a broken dynamic body is worse than substituting a hull.
 
 		*/
-		if(type === BABYLON.PhysicsImpostor.MeshImpostor && mass > 0)
+		if((type === BABYLON.PhysicsImpostor.MeshImpostor ||
+			type === BABYLON.PhysicsImpostor.HeightmapImpostor) && mass > 0) {
+
 			type = BABYLON.PhysicsImpostor.BoxImpostor;
+		}
 
 		try {
 
@@ -443,7 +508,7 @@
 					capabilities
 				});
 
-				return { scene };
+				return { scene, skybox: null };
 			},
 
 			onChange: (context, instance) => {
@@ -453,7 +518,52 @@
 				instance.object = operators[0].onCreate(context, instance);
 			},
 
-			onDestroy: context => {
+			/*
+
+				The world is created before any texture exists, so a skybox
+				referencing one is built on the first frame it becomes
+				available and is left alone thereafter.
+
+			*/
+			onUpdate: (context, instance) => {
+
+				let background = instance.data.background;
+
+				if(instance.object.skybox != null ||
+					!isObject(background) || background.texture == null) {
+
+					return;
+				}
+
+				let texture = resolveTexture(context, background.texture);
+
+				if(texture == null)
+					return;
+
+				let scene = context.meta.scene;
+
+				instance.object.skybox = scene.createDefaultSkybox(
+					texture,
+					true,
+					instance.data.horizon != null ? instance.data.horizon : 1000
+				);
+
+				/* The sky is scenery, not geometry: it must not answer rays. */
+				if(instance.object.skybox != null)
+					instance.object.skybox.isPickable = false;
+
+				scene.environmentTexture = texture;
+			},
+
+			onDestroy: (context, instance) => {
+
+				if(instance != null && instance.object != null &&
+					instance.object.skybox != null) {
+
+					instance.object.skybox.dispose();
+				}
+
+				context.meta.scene.environmentTexture = null;
 
 				if(context.meta.physics)
 					context.meta.scene.disablePhysicsEngine();
@@ -762,6 +872,14 @@
 
 				let configure = texture => {
 
+					if(data.cube === true) {
+
+						texture.coordinatesMode =
+							BABYLON.Texture.SKYBOX_MODE;
+
+						return;
+					}
+
 					texture.wrapU = texture.wrapV =
 						data.wrap === "clamp" ?
 							BABYLON.Texture.CLAMP_ADDRESSMODE :
@@ -811,10 +929,12 @@
 					return object;
 				}
 
-				let source = Array.isArray(instance.source) ?
-					instance.source[0] : instance.source;
+				let sources = (
+					Array.isArray(instance.source) ?
+						instance.source : [instance.source]
+				).filter(candidate => typeof candidate === "string");
 
-				if(typeof source !== "string") {
+				if(sources.length === 0) {
 
 					ace.setState(context, instance.record, {
 						loaded: false,
@@ -824,27 +944,71 @@
 					return object;
 				}
 
-				let texture = new BABYLON.Texture(
-					source,
-					scene,
-					data.mipmaps === false,
-					data.flip !== true
-				);
+				/*
 
-				configure(texture);
+					APInt 2.1.2 allows a source to be a list of locations in
+					order of preference. Each is tried in turn, which is what
+					makes a document that depends on third-party asset hosts
+					degrade rather than break.
 
-				texture.onLoadObservable.add(() => {
+				*/
+				let attempt = index => {
 
-					ace.setState(context, instance.record, {
-						loaded: true,
-						size: [
-							texture.getSize().width,
-							texture.getSize().height
-						]
-					});
-				});
+					if(index >= sources.length) {
 
-				object.texture = texture;
+						ace.setState(context, instance.record, {
+							loaded: false,
+							error: "all sources failed"
+						});
+
+						return;
+					}
+
+					let source = sources[index];
+
+					let texture = data.cube === true ?
+						new BABYLON.CubeTexture(
+							source,
+							scene,
+							Array.isArray(data.faces) ? data.faces : null,
+							data.mipmaps === false,
+							null,
+							() => {
+
+								ace.setState(context, instance.record, {
+									loaded: true
+								});
+							},
+							() => attempt(index + 1)
+						) :
+						new BABYLON.Texture(
+							source,
+							scene,
+							data.mipmaps === false,
+							data.flip !== true,
+							null,
+							() => {
+
+								ace.setState(context, instance.record, {
+									loaded: true,
+									size: [
+										texture.getSize().width,
+										texture.getSize().height
+									]
+								});
+							},
+							() => attempt(index + 1)
+						);
+
+					configure(texture);
+
+					if(object.texture != null && object.texture !== texture)
+						object.texture.dispose();
+
+					object.texture = texture;
+				};
+
+				attempt(0);
 
 				ace.setState(context, instance.record, { loaded: false });
 
@@ -1071,6 +1235,102 @@
 					data.segments[0] :
 					data.segments != null ? data.segments : 16;
 
+				let shape = data.shape != null ? data.shape : null;
+
+				/*
+
+					Heightmap terrain. The geometry is identical whether the
+					heights arrive as an image at a URL or as raw samples in the
+					content field; only the means of obtaining them differs, so
+					a document can be authored either way and tested headlessly
+					with the second.
+
+				*/
+				if(shape === "heightmap") {
+
+					let options = {
+						width: dimensions[0],
+						height: dimensions[2] != null ?
+							dimensions[2] : dimensions[0],
+						subdivisions: Array.isArray(data.segments) ?
+							data.segments[0] :
+							data.segments != null ? data.segments : 100,
+						minHeight: Array.isArray(data.elevation) ?
+							data.elevation[0] : 0,
+						maxHeight: Array.isArray(data.elevation) ?
+							data.elevation[1] : dimensions[1],
+						colorFilter: new BABYLON.Color3(0.3, 0.59, 0.11),
+						alphaFilter: 0
+					};
+
+					object.shape = "heightmap";
+
+					let samples = operators[5].heights(instance, data);
+
+					if(samples != null) {
+
+						let mesh = new BABYLON.Mesh(name, scene);
+
+						BABYLON.VertexData.CreateGroundFromHeightMap(
+							Object.assign({ }, options, {
+								buffer: samples.buffer,
+								bufferWidth: samples.width,
+								bufferHeight: samples.height
+							})
+						).applyToMesh(mesh);
+
+						mesh.parent = node;
+						object.mesh = mesh;
+
+						operators[5].finish(context, instance, object);
+
+						return object;
+					}
+
+					let source = Array.isArray(instance.source) ?
+						instance.source[0] : instance.source;
+
+					if(typeof source !== "string") {
+
+						ace.setState(context, instance.record, {
+							loaded: false,
+							error: "heightmap needs a source image or height content"
+						});
+
+						return object;
+					}
+
+					object.mesh = BABYLON.MeshBuilder.CreateGroundFromHeightMap(
+						name,
+						source,
+						Object.assign({ }, options, {
+							onReady: () => {
+
+								if(object.disposed)
+									return;
+
+								operators[5].finish(context, instance, object);
+
+								/*
+
+									Terrain collision cannot be built until the
+									heights have arrived.
+
+								*/
+								rebuildImpostor(context, instance.entityKey);
+							}
+						}),
+						scene
+					);
+
+					object.mesh.parent = node;
+
+					ace.setState(context, instance.record, { loaded: false });
+
+					return object;
+				}
+
+
 				/* Loaded model. */
 				if(instance.source != null) {
 
@@ -1143,7 +1403,7 @@
 				}
 
 				/* Parametric primitive. */
-				let shape = data.shape != null ? data.shape : "box";
+				shape = shape != null ? shape : "box";
 
 				let builders = {
 					box: () => BABYLON.MeshBuilder.CreateBox(name, {
@@ -1205,6 +1465,55 @@
 				operators[5].finish(context, instance, object);
 
 				return object;
+			},
+
+			/*
+
+				Height content is accepted either as raw RGBA samples matching
+				an image, or as a JSON object of normalised heights, which is
+				far easier to author and to generate.
+
+			*/
+			heights: (instance, data) => {
+
+				if(instance.content == null)
+					return null;
+
+				if(Array.isArray(instance.content)) {
+
+					if(!Array.isArray(data.resolution))
+						return null;
+
+					return {
+						buffer: new Uint8Array(instance.content),
+						width: data.resolution[0],
+						height: data.resolution[1]
+					};
+				}
+
+				let parsed = JSON.parse(instance.content);
+
+				if(!Array.isArray(parsed.heights) ||
+					!Array.isArray(parsed.resolution)) {
+
+					return null;
+				}
+
+				let width = parsed.resolution[0];
+				let height = parsed.resolution[1];
+				let buffer = new Uint8Array(width * height * 4);
+
+				parsed.heights.forEach((value, index) => {
+
+					let sample = Math.max(0, Math.min(255, Math.round(value * 255)));
+
+					buffer[index * 4] = sample;
+					buffer[index * 4 + 1] = sample;
+					buffer[index * 4 + 2] = sample;
+					buffer[index * 4 + 3] = 255;
+				});
+
+				return { buffer, width, height };
 			},
 
 			decode: (bytes, layout) => {
@@ -1320,6 +1629,8 @@
 
 						operators[5].finish(context, instance, object);
 
+						rebuildImpostor(context, instance.entityKey);
+
 						ace.setState(context, instance.record, {
 							loaded: true,
 							nodes: content.meshes.map(mesh => mesh.name),
@@ -1344,6 +1655,8 @@
 
 				if(mesh == null)
 					return;
+
+				own(mesh, instance.entityKey);
 
 				let meshes = mesh.getChildMeshes != null ?
 					[mesh].concat(mesh.getChildMeshes()) : [mesh];
@@ -1455,6 +1768,8 @@
 						BABYLON.Mesh.BILLBOARDMODE_ALL;
 				}
 
+				own(plane, instance.entityKey);
+
 				let object = { mesh: plane, texture: null, material: null };
 
 				/*
@@ -1563,6 +1878,8 @@
 					object.mesh.isVisible = false;
 					object.mesh.parent = nodeFor(context, instance.entity);
 					object.owned = true;
+
+					own(object.mesh, instance.entityKey);
 				}
 
 				if(Array.isArray(instance.data.offset))
@@ -1590,8 +1907,30 @@
 
 				let impostor = instance.object.impostor;
 
-				if(impostor == null)
-					return;
+				/*
+
+					Retry for as long as the shape is pending. This covers every
+					asynchronous geometry source uniformly, rather than relying
+					on each loader to remember to rebuild.
+
+				*/
+				if(impostor == null) {
+
+					let mesh = siblingInstance(context, instance, "mesh");
+					let geometry = mesh != null ? mesh.object.mesh : null;
+
+					if(context.meta.physics && geometry != null &&
+						geometry.getTotalVertices != null &&
+						geometry.getTotalVertices() > 0) {
+
+						instance.object.mesh = geometry;
+
+						impostor = rebuildImpostor(context, instance.entityKey);
+					}
+
+					if(impostor == null)
+						return;
+				}
 
 				let contacts = context.meta.contacts[instance.entityKey];
 
@@ -1874,10 +2213,15 @@
 				let data = instance.data;
 				let object = { sound: null, blocked: false };
 
-				let source = Array.isArray(instance.source) ?
-					instance.source[0] : instance.source;
+				let sources = (
+					Array.isArray(instance.source) ?
+						instance.source : [instance.source]
+				).filter(candidate => typeof candidate === "string");
 
-				if(typeof source !== "string" || BABYLON.Sound == null) {
+				/* Babylon accepts a list and falls through it in order. */
+				let source = sources.length > 1 ? sources : sources[0];
+
+				if(sources.length === 0 || BABYLON.Sound == null) {
 
 					ace.setState(context, instance.record, {
 						loaded: false,
@@ -2121,6 +2465,9 @@
 					let owner = pick.pickedMesh;
 					let path = null;
 
+					if(owner != null && owner.metadata?.aceEntity != null)
+						path = JSON.parse(owner.metadata.aceEntity);
+
 					while(owner != null && path == null) {
 
 						let key = Object.keys(context.meta.nodes).find(
@@ -2166,8 +2513,17 @@
 						vector(data.origin) :
 						(context.meta.nodes[instance.entityKey] != null ?
 							context.meta.nodes[instance.entityKey]
-								.getAbsolutePosition() :
+								.getAbsolutePosition().clone() :
 							BABYLON.Vector3.Zero());
+
+					/*
+
+						An offset lets a probe track its entity without the
+						document rewriting the origin every frame.
+
+					*/
+					if(Array.isArray(data.offset))
+						origin.addInPlace(vector(data.offset));
 
 					let direction = vector(data.direction, [0, 0, -1]).normalize();
 					let distance = data.distance != null ? data.distance : 1000;
@@ -2227,6 +2583,8 @@
 		controllers: { },
 		gesture: false,
 		attached: false,
+		locked: false,
+		surface: null,
 
 		/* Accepts an injected event target, so input is testable headlessly. */
 		attach: target => {
@@ -2235,6 +2593,7 @@
 				return;
 
 			input.attached = true;
+			input.surface = target;
 
 			let keyboard = input.device("keyboard", 0);
 			let pointer = input.device("pointer", 0);
@@ -2299,8 +2658,33 @@
 				let x = event.clientX / width;
 				let y = 1 - event.clientY / height;
 
-				pointer.analog.dx = x - (pointer.analog.x != null ? pointer.analog.x : x);
-				pointer.analog.dy = y - (pointer.analog.y != null ? pointer.analog.y : y);
+				/*
+
+					Under pointer lock the cursor has no position, only motion,
+					and movementX/Y is the only meaningful signal. Both are
+					reported in the same normalised units so that a document
+					reading dx and dy behaves the same either way.
+
+				*/
+				if(input.locked && event.movementX != null) {
+
+					pointer.analog.dx =
+						(pointer.analog.dx != null ? pointer.analog.dx : 0) +
+						event.movementX / width;
+
+					pointer.analog.dy =
+						(pointer.analog.dy != null ? pointer.analog.dy : 0) -
+						event.movementY / height;
+
+				} else {
+
+					pointer.analog.dx =
+						x - (pointer.analog.x != null ? pointer.analog.x : x);
+
+					pointer.analog.dy =
+						y - (pointer.analog.y != null ? pointer.analog.y : y);
+				}
+
 				pointer.analog.x = x;
 				pointer.analog.y = y;
 				pointer.analog.pressure = event.pressure != null ? event.pressure : 0;
@@ -2439,12 +2823,39 @@
 
 			let engine = context.meta.engine;
 
+			/*
+
+				The reserved entity is rewritten every frame, but its data
+				objects are authored — time scale, cursor mode — and belong to
+				the document. They are carried across the rewrite; only state
+				is replaced.
+
+			*/
+			let existing = context.data.packages != null ?
+				context.data.packages[ace.RESERVED] : null;
+
+			const carry = alias => {
+
+				let data = existing?.utilities?.[alias]?.properties?.data;
+
+				return isObject(data) ? data : { };
+			};
+
+			let timeData = carry("time");
+			let displayData = carry("display");
+
+			scale = timeData.scale != null ? timeData.scale : 1;
+
+			context.meta.timeScale = scale;
+
+			adapter.cursor(context, displayData.cursor);
+
 			let reserved = {
 				utilities: {
 					time: {
 						properties: {
 							tags: ["time", ace.TAG],
-							data: { scale },
+							data: timeData,
 							state: {
 								delta: unscaled * scale,
 								unscaled,
@@ -2458,7 +2869,7 @@
 					display: {
 						properties: {
 							tags: ["display", ace.TAG],
-							data: { },
+							data: displayData,
 							state: {
 								size: [
 									engine.getRenderWidth(),
@@ -2471,6 +2882,7 @@
 								focused: true,
 								fullscreen: false,
 								gesture: input.gesture,
+								locked: input.locked,
 								fps: engine.getFps != null ?
 									Math.round(engine.getFps()) : 0,
 								xr: { presenting: false }
@@ -2486,14 +2898,8 @@
 			context.data.packages = context.data.packages != null ?
 				context.data.packages : { };
 
-			/* Rewritten wholesale each frame; script writes here never survive. */
+			/* State is rewritten wholesale; script writes to it never survive. */
 			context.data.packages[ace.RESERVED] = reserved;
-
-			/* A time scale written by a script is honoured on the next frame. */
-			let authored = context.data.packages[ace.RESERVED];
-
-			context.meta.timeScale = scale;
-			context.meta.authoredTime = authored;
 		},
 
 		/*
@@ -2676,6 +3082,48 @@
 			});
 		},
 
+		/*
+
+			Pointer lock can only be requested from inside a user gesture, so a
+			document asking for it is honoured on the next click rather than
+			immediately.
+
+		*/
+		cursor: (context, mode) => {
+
+			let surface = input.surface;
+
+			if(surface == null || surface.requestPointerLock == null)
+				return;
+
+			let owner = surface.ownerDocument;
+
+			input.locked = owner != null &&
+				owner.pointerLockElement === surface;
+
+			if(mode === "locked" && !input.locked && !context.meta.lockPending) {
+
+				context.meta.lockPending = true;
+
+				surface.addEventListener("click", () => {
+
+					if(input.locked)
+						return;
+
+					let request = surface.requestPointerLock();
+
+					if(request != null && request.catch != null)
+						request.catch(() => { });
+				});
+			}
+
+			if(mode !== "locked" && input.locked && owner.exitPointerLock != null)
+				owner.exitPointerLock();
+
+			if(surface.style != null)
+				surface.style.cursor = mode === "hidden" ? "none" : "";
+		},
+
 		onDispose: context => {
 
 			Object.values(context.meta.nodes).forEach(node => node.dispose());
@@ -2741,6 +3189,9 @@
 			}
 
 			let scene = new BABYLON.Scene(engine);
+
+			/* Standard 2.2.3: right-handed, Y-up. Babylon defaults to left. */
+			scene.useRightHandedSystem = true;
 
 			scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
