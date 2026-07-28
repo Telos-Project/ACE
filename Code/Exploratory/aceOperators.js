@@ -2631,6 +2631,35 @@
 				let limit = data.limit != null ? data.limit : 1;
 				let hits = [];
 
+				/*
+
+					A query with no tags answers for anything in the scene,
+					which is rarely what a probe wants: a ground probe that
+					accepts the first surface below it will happily report the
+					underside of whatever the player is walking beneath.
+
+				*/
+				let wanted = Array.isArray(data.tags) ? data.tags :
+					typeof data.tags === "string" ? [data.tags] : null;
+
+				let predicate = wanted == null ? undefined : mesh => {
+
+					if(mesh.isPickable === false)
+						return false;
+
+					let key = mesh.metadata?.aceEntity;
+
+					if(key == null)
+						return false;
+
+					let entity = context.resolved.entities.find(
+						candidate => candidate.key === key
+					);
+
+					return entity != null &&
+						entity.tags.some(tag => wanted.includes(tag));
+				};
+
 				const describe = pick => {
 
 					if(pick == null || !pick.hit)
@@ -2673,13 +2702,119 @@
 
 					let pick = scene.pick(
 						data.screen[0] * size.width,
-						(1 - data.screen[1]) * size.height
+						(1 - data.screen[1]) * size.height,
+						predicate
 					);
 
 					let hit = describe(pick);
 
 					if(hit != null)
 						hits.push(hit);
+
+				} else if(type === "overlap") {
+
+					/*
+
+						An overlap answers for everything within a radius rather
+						than along a line, which is what a body needs in order
+						to be pushed out of the things it has walked into. The
+						normal points from the other body toward the query, so a
+						document can move along it to separate them.
+
+						The test is against world bounding volumes, so it is an
+						approximation, and a generous one for long thin shapes
+						held at an angle.
+
+					*/
+					let centre = Array.isArray(data.origin) ?
+						vector(data.origin) :
+						(context.meta.nodes[instance.entityKey] != null ?
+							context.meta.nodes[instance.entityKey]
+								.getAbsolutePosition().clone() :
+							BABYLON.Vector3.Zero());
+
+					if(Array.isArray(data.offset))
+						centre.addInPlace(vector(data.offset));
+
+					let radius =
+						typeof data.shape?.size === "number" ? data.shape.size :
+						Array.isArray(data.shape?.size) ? data.shape.size[0] :
+						data.distance != null ? data.distance : 1;
+
+					scene.meshes.forEach(mesh => {
+
+						if(mesh.isEnabled() === false)
+							return;
+
+						if(predicate != null ? !predicate(mesh) :
+							mesh.isPickable === false) {
+
+							return;
+						}
+
+						if(mesh.metadata?.aceEntity == null ||
+							mesh.getTotalVertices == null ||
+							mesh.getTotalVertices() === 0) {
+
+							return;
+						}
+
+						mesh.computeWorldMatrix(false);
+
+						let box = mesh.getBoundingInfo().boundingBox;
+						let min = box.minimumWorld;
+						let max = box.maximumWorld;
+
+						let closest = new BABYLON.Vector3(
+							Math.min(Math.max(centre.x, min.x), max.x),
+							Math.min(Math.max(centre.y, min.y), max.y),
+							Math.min(Math.max(centre.z, min.z), max.z)
+						);
+
+						let delta = centre.subtract(closest);
+						let distance = delta.length();
+
+						if(distance > radius)
+							return;
+
+						let normal;
+
+						if(distance > 1e-6) {
+
+							normal = delta.scale(1 / distance);
+
+						} else {
+
+							/*
+
+								The query is inside the volume, so there is no
+								direction away from the surface to report. The
+								shortest way out is through the nearest face,
+								which for anything taller than it is wide is a
+								sideways push rather than an upward one.
+
+							*/
+							let faces = [
+								[new BABYLON.Vector3(-1, 0, 0), centre.x - min.x],
+								[new BABYLON.Vector3(1, 0, 0), max.x - centre.x],
+								[new BABYLON.Vector3(0, -1, 0), centre.y - min.y],
+								[new BABYLON.Vector3(0, 1, 0), max.y - centre.y],
+								[new BABYLON.Vector3(0, 0, -1), centre.z - min.z],
+								[new BABYLON.Vector3(0, 0, 1), max.z - centre.z]
+							];
+
+							normal = faces.reduce(
+								(best, face) => face[1] < best[1] ? face : best
+							)[0];
+						}
+
+						hits.push({
+							target: JSON.parse(mesh.metadata.aceEntity),
+							point: array3(closest),
+							normal: array3(normal),
+							distance
+						});
+					});
 
 				} else if(type === "ray" || type === "shape") {
 
@@ -2706,14 +2841,14 @@
 
 					if(limit === 1) {
 
-						let hit = describe(scene.pickWithRay(ray));
+						let hit = describe(scene.pickWithRay(ray, predicate));
 
 						if(hit != null)
 							hits.push(hit);
 
 					} else {
 
-						(scene.multiPickWithRay(ray) || []).forEach(pick => {
+						(scene.multiPickWithRay(ray, predicate) || []).forEach(pick => {
 
 							let hit = describe(pick);
 

@@ -188,7 +188,7 @@ Scene-wide settings. Exactly one per document, in the root entity. Ignored elsew
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | gravity | vec3 | [0,-9.81,0] | Omit or set null to disable physics simulation entirely |
-| background | color \| reference | [0,0,0,1] | A color, or `{ "texture": <path> }` referencing a cube texture, which becomes the skybox and the environment |
+| background | color \| reference | [0,0,0,1] | A color, or `{ "texture": <path> }` referencing a cube texture, which becomes the skybox and the environment. A skybox is scenery and shall never answer a query |
 | horizon | number | 1000 | Skybox radius |
 | ambient | color | [0,0,0] | Ambient light contribution |
 | fog | object | — | `{ color, near, far }` |
@@ -574,8 +574,8 @@ component after writing the result.
 | direction | vec3 | [0,0,-1] | |
 | distance | number | 1000 | |
 | screen | vec2 | — | For "pick", normalized viewport coordinates instead of origin/direction |
-| shape | object | — | For "shape" and "overlap": `{ shape, size }` as per collider |
-| layer | string[] | — | Layers to test against; omit for all |
+| shape | object | — | For "shape" and "overlap": `{ shape, size }` as per collider. For an overlap sphere, `size` is the radius |
+| tags | string[] | — | Restrict the answer to entities carrying any of these tags (§2.2.2); omit to accept anything |
 | limit | integer | 1 | Maximum hits to return; 0 for unlimited |
 | continuous | boolean | false | Re-evaluate every frame rather than once |
 
@@ -584,6 +584,25 @@ component after writing the result.
 | Field | Type | Meaning |
 |---|---|---|
 | hits | object[] | `{ target, point, normal, distance }`, nearest first |
+
+For `type: "overlap"`, every entity within the radius is answered rather than those along a line.
+`point` is the nearest point on the other body, `distance` is how far that lies from the query
+centre, and `normal` points from that point back toward the centre — so a document separates two
+bodies by moving along `normal` by `radius - distance`. Where the centre lies inside the other body
+there is no surface direction to report, and the normal points out through the nearest face.
+
+Adapters may answer an overlap against world bounding volumes rather than exact geometry. This is
+an approximation, and a generous one for a long thin shape held at an angle.
+
+A body that separates along the whole normal will ride up and over whatever it walks into. Using
+only the horizontal part stops it instead, which is usually what is wanted, and is a decision for
+the document rather than the adapter.
+
+An unrestricted query answers for the nearest surface of any kind, which is rarely what a probe
+wants: a downward ground probe will otherwise report the underside of whatever the subject is
+standing beneath, and a document following that answer will place the subject on top of it. Tagging
+the surfaces that a probe should accept is how a document expresses the difference between the
+ground and the things resting on it.
 
 `type: "hit-test"` requires an XR session with the "hit-test" feature and ignores origin and
 direction, using the session's tracked input ray or viewer pose.
