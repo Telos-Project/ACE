@@ -949,13 +949,17 @@
 						view should lower it again while presenting.
 
 					*/
-					base.onStateChangedObservable.add(state => {
+					/*
 
-						if(state !== BABYLON.WebXRState.IN_XR)
-							return;
+						The rig is not parented. A parent transform reaches the
+						headset camera's position but not its orientation,
+						because the view direction is rebuilt from the session
+						pose every frame; turning the parent then swings the
+						viewer around a point instead of turning them on the
+						spot. The reference space is what has to move, and it is
+						updated in onUpdate below.
 
-						base.camera.parent = nodeFor(context, instance.entity);
-					});
+					*/
 
 				}).catch(error => {
 
@@ -991,17 +995,57 @@
 
 					/*
 
-						Re-attached every frame rather than once on entry. A
-						runtime is free to rebuild its camera when the reference
-						space changes, and a rig that has quietly come adrift
-						reports a head position with no relation to where the
-						document put its subject.
+						The document's transform is carried into the session by
+						moving the reference space the headset is tracked
+						within, which is the only thing that turns a viewer
+						rather than orbiting them.
+
+						Babylon takes the yaw of the camera it is handed and
+						discards the rest, and forces the floor to y = 0, so the
+						height is restored afterwards.
 
 					*/
-					if(node != null && head.parent !== node)
-						head.parent = node;
+					if(node != null && instance.object.camera != null &&
+						typeof head.setTransformationFromNonVRCamera === "function") {
 
-					state.rigged = head.parent === node;
+						node.computeWorldMatrix(true);
+						instance.object.camera.computeWorldMatrix(true);
+
+						let ground = node.absolutePosition;
+
+						let facing = node.absoluteRotationQuaternion != null ?
+							node.absoluteRotationQuaternion :
+							BABYLON.Quaternion.Identity();
+
+						let signature = [
+							Math.round(ground.x * 1000),
+							Math.round(ground.y * 1000),
+							Math.round(ground.z * 1000),
+							Math.round(facing.y * 10000),
+							Math.round(facing.w * 10000)
+						].join(",");
+
+						if(signature !== instance.object.rig) {
+
+							head.setTransformationFromNonVRCamera(
+								instance.object.camera, true
+							);
+
+							head.position.y = ground.y;
+
+							instance.object.rig = signature;
+						}
+
+						state.rigged = "reference-space";
+
+					} else if(node != null) {
+
+						/* Nothing better available; at least follow position. */
+						if(head.parent !== node)
+							head.parent = node;
+
+						state.rigged = "parent";
+					}
 
 					/*
 
