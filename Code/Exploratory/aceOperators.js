@@ -387,10 +387,17 @@
 		if(active == null)
 			return null;
 
-		let record = context.resolved.components.find(candidate =>
-			candidate.type === "camera" &&
-			context.instances[ace.identity(candidate)]?.object?.camera === active
-		);
+		let record = context.resolved.components.find(candidate => {
+
+			let object = context.instances[ace.identity(candidate)]?.object;
+
+			if(candidate.type !== "camera" || object == null)
+				return false;
+
+			/* In a session Babylon renders through its own camera instead. */
+			return object.camera === active ||
+				object.xr?.baseExperience?.camera === active;
+		});
 
 		return record != null ? context.meta.nodes[record.entityKey] : null;
 	};
@@ -882,7 +889,15 @@
 				let data = instance.data;
 				let scene = context.meta.scene;
 
-				if(scene.createDefaultXRExperienceAsync == null || !hasDOM)
+				/*
+
+					Support is decided by the runtime, which resolves without a
+					base experience where there is none. Guessing at it from the
+					presence of a document object only makes the request
+					untestable.
+
+				*/
+				if(scene.createDefaultXRExperienceAsync == null)
 					return;
 
 				let mode = data.xr.mode === "ar" ?
@@ -895,14 +910,51 @@
 							data.xr.space : "local-floor"
 					},
 					optionalFeatures: Array.isArray(data.xr.features) ?
-						data.xr.features : []
+						data.xr.features : [],
+
+					/*
+
+						Babylon enables teleportation by default, which takes
+						the thumbstick and moves in jumps. A document asking for
+						continuous locomotion has to say so, and it does that by
+						not asking for teleportation.
+
+					*/
+					disableTeleportation: data.xr.teleport !== true
 
 				}).then(experience => {
 
 					object.xr = experience;
+					context.meta.xr = experience;
 
 					ace.setState(context, instance.record, {
 						supported: [data.xr.mode]
+					});
+
+					let base = experience.baseExperience;
+
+					if(base == null)
+						return;
+
+					/*
+
+						The headset reports its pose within a reference space,
+						which has no idea where the document has put the player.
+						Riding the camera's entity makes the document's position
+						the origin the headset moves around in, so walking is
+						expressed exactly as it is on a desktop.
+
+						Eye height comes from the headset in a floor-relative
+						space, so a document that raises its camera for a desktop
+						view should lower it again while presenting.
+
+					*/
+					base.onStateChangedObservable.add(state => {
+
+						if(state !== BABYLON.WebXRState.IN_XR)
+							return;
+
+						base.camera.parent = nodeFor(context, instance.entity);
 					});
 
 				}).catch(error => {
@@ -934,16 +986,61 @@
 
 				if(presenting && xr.baseExperience.camera != null) {
 
-					let camera = xr.baseExperience.camera;
+					let head = xr.baseExperience.camera;
+					let node = instance.object.node;
+
+					/*
+
+						Re-attached every frame rather than once on entry. A
+						runtime is free to rebuild its camera when the reference
+						space changes, and a rig that has quietly come adrift
+						reports a head position with no relation to where the
+						document put its subject.
+
+					*/
+					if(node != null && head.parent !== node)
+						head.parent = node;
+
+					state.rigged = head.parent === node;
+
+					/*
+
+						Which frame a runtime reports its headset in is not
+						something to be assumed. The world position is taken
+						from the engine, and the offset within the rig is
+						derived from it, so both are in frames defined here.
+
+						Reading the camera's own position field instead gives a
+						value whose meaning depends on whether parenting took
+						effect, and a document using it to turn about the head
+						is then thrown across the scene as it walks.
+
+					*/
+					let world = head.globalPosition != null ?
+						head.globalPosition : head.position;
 
 					state.pose = {
-						position: array3(camera.position),
+						position: array3(world),
 						rotation: array4(
-							camera.rotationQuaternion != null ?
-								camera.rotationQuaternion :
+							head.absoluteRotation != null ?
+								head.absoluteRotation :
+							head.rotationQuaternion != null ?
+								head.rotationQuaternion :
 								BABYLON.Quaternion.Identity()
 						)
 					};
+
+					if(node != null) {
+
+						node.computeWorldMatrix(true);
+
+						state.offset = array3(
+							BABYLON.Vector3.TransformCoordinates(
+								world,
+								BABYLON.Matrix.Invert(node.getWorldMatrix())
+							)
+						);
+					}
 				}
 
 				ace.setState(context, instance.record, state);
@@ -2874,17 +2971,21 @@
 							/*
 
 								The query is inside the volume, so there is no
-								direction away from the surface to report. The
-								shortest way out is through the nearest face,
-								which for anything taller than it is wide is a
-								sideways push rather than an upward one.
+								direction away from the surface to report, and
+								the shortest way out has to be chosen.
+
+								Only the sides are considered. The floor of a
+								volume a body is standing inside is usually the
+								nearest face of all, and answering with it says
+								the way out is downwards, which is no use to
+								anything that walks. Separating vertically is
+								the ground probe's business; an overlap answers
+								laterally.
 
 							*/
 							let faces = [
 								[new BABYLON.Vector3(-1, 0, 0), centre.x - min.x],
 								[new BABYLON.Vector3(1, 0, 0), max.x - centre.x],
-								[new BABYLON.Vector3(0, -1, 0), centre.y - min.y],
-								[new BABYLON.Vector3(0, 1, 0), max.y - centre.y],
 								[new BABYLON.Vector3(0, 0, -1), centre.z - min.z],
 								[new BABYLON.Vector3(0, 0, 1), max.z - centre.z]
 							];
@@ -2965,6 +3066,8 @@
 	// ------------------------------------------------------------ reserved
 
 	const DIGITAL = {
+		/* The xr-standard mapping, in button order. */
+		xr: ["trigger", "squeeze", "touchpad", "thumbstick", "a", "b"],
 		gamepad: [
 			"a", "b", "x", "y", "left-bumper", "right-bumper",
 			null, null, "select", "start", "left-stick", "right-stick",
@@ -3002,6 +3105,21 @@
 
 				unlockAudio();
 			};
+
+			/*
+
+				The runtime's own entry button is not the canvas, so a gesture
+				is watched for across the whole document as well.
+
+			*/
+			let owner = target.ownerDocument;
+
+			if(owner != null && owner.addEventListener != null) {
+
+				["pointerdown", "keydown"].forEach(name =>
+					owner.addEventListener(name, gesture, { capture: true })
+				);
+			}
 
 			on("keydown", event => {
 
@@ -3115,6 +3233,136 @@
 			}
 
 			return input.controllers[id];
+		},
+
+		/*
+
+			Tracked controllers are polled from the session rather than from the
+			gamepad API, but they are published as the same controller component
+			as a keyboard or a pad, with a pose and a pointing ray added. A
+			document reads a thumbstick the same way whatever it is attached to.
+
+		*/
+		xr: context => {
+
+			let experience = context.meta.xr;
+			let base = experience != null ? experience.baseExperience : null;
+
+			let live = { };
+
+			let presenting = base != null &&
+				base.state === BABYLON.WebXRState.IN_XR;
+
+			if(presenting && experience.input != null) {
+
+				(experience.input.controllers != null ?
+					experience.input.controllers : []
+				).forEach(source => {
+
+					let hand = source.inputSource?.handedness != null ?
+						source.inputSource.handedness : "none";
+
+					let controller = input.device("xr-controller", hand, hand);
+
+					live["xr-controller-" + hand] = true;
+
+					let pad = source.inputSource?.gamepad;
+					let previous = controller.digital;
+
+					controller.digital = [];
+
+					if(pad != null) {
+
+						pad.buttons.forEach((button, slot) => {
+
+							let name = DIGITAL.xr[slot];
+
+							if(name != null && button.pressed)
+								controller.digital.push(name);
+						});
+
+						let dead = controller.deadzone != null ?
+							controller.deadzone : 0.1;
+
+						const axis = value =>
+							value == null || Math.abs(value) < dead ? 0 : value;
+
+						/*
+
+							WebXR reports a stick pushed away from the user as
+							negative, which is the opposite of the convention
+							every other device here uses.
+
+						*/
+						controller.analog = {
+							"touchpad-x": axis(pad.axes[0]),
+							"touchpad-y": axis(-pad.axes[1]),
+							"thumbstick-x": axis(pad.axes[2]),
+							"thumbstick-y": axis(-pad.axes[3]),
+							trigger: pad.buttons[0]?.value != null ?
+								pad.buttons[0].value : 0,
+							squeeze: pad.buttons[1]?.value != null ?
+								pad.buttons[1].value : 0
+						};
+					}
+
+					controller.pressed = controller.digital.filter(
+						name => !previous.includes(name)
+					);
+
+					controller.released = previous.filter(
+						name => !controller.digital.includes(name)
+					);
+
+					let node = source.grip != null ? source.grip : source.pointer;
+
+					if(node != null) {
+
+						node.computeWorldMatrix(true);
+
+						controller.pose = {
+							position: array3(node.absolutePosition),
+							rotation: array4(
+								node.absoluteRotationQuaternion != null ?
+									node.absoluteRotationQuaternion :
+									BABYLON.Quaternion.Identity()
+							)
+						};
+					}
+
+					/*
+
+						The pointing ray is asked for rather than derived from
+						the pointer node, since which local axis points forward
+						is a detail of how the session was imported.
+
+					*/
+					if(source.getWorldPointerRayToRef != null) {
+
+						if(context.meta.ray == null) {
+
+							context.meta.ray = new BABYLON.Ray(
+								BABYLON.Vector3.Zero(),
+								new BABYLON.Vector3(0, 0, -1)
+							);
+						}
+
+						source.getWorldPointerRayToRef(context.meta.ray);
+
+						controller.ray = {
+							origin: array3(context.meta.ray.origin),
+							direction: array3(context.meta.ray.direction)
+						};
+					}
+				});
+			}
+
+			/* A controller that has gone is removed, not left stale. */
+			Object.keys(input.controllers).filter(
+				id => id.startsWith("xr-controller-") && !live[id]
+			).forEach(id => delete input.controllers[id]);
+
+			return presenting;
 		},
 
 		/* Polls devices that do not deliver events, then publishes a frame. */
@@ -3231,6 +3479,23 @@
 				(context.meta.elapsed != null ? context.meta.elapsed : 0) +
 				unscaled * scale;
 
+			let presenting = input.xr(context);
+
+			/*
+
+				A headset delivers no pointer events to the canvas, so the
+				gesture that unblocks audio never arrives by the usual route.
+				Entering a session is itself a deliberate act by the wearer and
+				is treated as one.
+
+			*/
+			if(presenting && !input.gesture) {
+
+				input.gesture = true;
+
+				unlockAudio();
+			}
+
 			let controllers = { };
 
 			Object.entries(input.poll()).forEach(([id, controller]) => {
@@ -3308,7 +3573,12 @@
 								locked: input.locked,
 								fps: engine.getFps != null ?
 									Math.round(engine.getFps()) : 0,
-								xr: { presenting: false }
+								xr: {
+									presenting,
+									mode: presenting ?
+										context.meta.xr?.baseExperience
+											?.sessionManager?.sessionMode : null
+								}
 							}
 						}
 					}

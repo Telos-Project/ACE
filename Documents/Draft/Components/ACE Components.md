@@ -226,8 +226,28 @@ Pose comes from the containing entity. A document with no enabled camera renders
 
 `xr.mode` is "vr" or "ar". `xr.features` is a list of optional session features, e.g.
 "hit-test", "anchors", "planes", "hands", "light-estimation". `xr.space` is the reference space,
-default "local-floor". Presence of the `xr` field is a request to present this camera in an
-immersive session; absence means no session is requested. Sessions are never started implicitly.
+default "local-floor". `xr.teleport`, absent by default, asks for the runtime's own teleportation
+locomotion; a document that moves its own subject shall leave it absent, or the two will contend
+for the same thumbstick.
+
+Presence of the `xr` field is a request to present this camera in an immersive session; absence
+means no session is requested. Sessions are never started implicitly. Where the runtime cannot
+offer one the request is simply never taken up, so the same document runs unchanged on a device
+with no headset. Adapters shall leave whatever entry and exit affordance the runtime provides in
+place rather than substituting their own.
+
+A runtime may report its headset in its own reference space or in world space, and adapters shall
+not pass either through untranslated. `pose` is world space and `offset` is relative to the camera's
+entity, both derived by the adapter, so that a document turning about the head has a value whose
+frame it can rely on. A document given a world position where it expected a rig-relative one is
+thrown further from its subject the further it travels from the origin.
+
+While presenting, the headset reports its pose within a reference space that knows nothing of where
+the document has placed its subject. The adapter shall resolve the headset against the camera's
+entity, so that the document's transform is the origin the headset moves around within and
+locomotion is expressed exactly as it is without a session. In a floor-relative space the headset
+measures eye height itself, so a document that raises its camera for a flat view is responsible for
+lowering it again while presenting.
 
 **state**
 
@@ -235,7 +255,8 @@ immersive session; absence means no session is requested. Sessions are never sta
 |---|---|---|
 | supported | string[] | XR modes the runtime supports |
 | presenting | boolean | An immersive session is active for this camera |
-| pose | object | `{ position, rotation }` — head pose, XR only |
+| pose | object | `{ position, rotation }` — head pose in world space, XR only |
+| offset | vec3 | Head position relative to this camera's entity, XR only |
 | views | object[] | Per-eye `{ position, rotation, fov }`, XR only |
 
 ### 2.3.3 - light
@@ -598,7 +619,10 @@ For `type: "overlap"`, every entity within the radius is answered rather than th
 `point` is the nearest point on the other body, `distance` is how far that lies from the query
 centre, and `normal` points from that point back toward the centre — so a document separates two
 bodies by moving along `normal` by `radius - distance`. Where the centre lies inside the other body
-there is no surface direction to report, and the normal points out through the nearest face.
+there is no surface direction to report, and the normal points out through the nearest **side**
+face. The floor of a volume a body is standing inside is usually the nearest face of all, and
+answering with it says the way out is downwards, which is no use to anything that walks: separating
+vertically belongs to a downward probe, and an overlap answers laterally.
 
 Adapters may answer an overlap against world bounding volumes rather than exact geometry. This is
 an approximation, and a generous one for a long thin shape held at an angle.
@@ -689,7 +713,7 @@ XR hand — is a controller, and is read identically.
 | pressed | string[] | Inputs that turned on this frame |
 | released | string[] | Inputs that turned off this frame |
 | analog | object | Input identifier to number |
-| pose | object | `{ position, rotation, linear, angular }` for tracked devices |
+| pose | object | `{ position, rotation, linear, angular }` for tracked devices, in world space |
 | ray | object | `{ origin, direction }` — the device's targeting ray, tracked devices only |
 | joints | object[] | `{ name, position, rotation, radius }`, XR hands only |
 
@@ -700,7 +724,7 @@ XR hand — is a controller, and is read identically.
 - touch: "contact".
 - gamepad: "a", "b", "x", "y", "left-bumper", "right-bumper", "left-stick", "right-stick",
   "start", "select", "up", "down", "left", "right", "home".
-- xr-controller: "trigger", "squeeze", "thumbstick", "touchpad", "a", "b".
+- xr-controller: "trigger", "squeeze", "touchpad", "thumbstick", "a", "b", in that button order.
 - xr-hand: "pinch", "grip".
 
 **Analog identifiers.**
@@ -711,7 +735,12 @@ XR hand — is a controller, and is read identically.
 - xr-controller: "thumbstick-x", "thumbstick-y", "touchpad-x", "touchpad-y", "trigger", "squeeze".
 - xr-hand: "pinch".
 
-Analog values are in [-1,1] for axes and [0,1] for triggers and pressure. Adapters shall report
+Tracked controllers are aliased by handedness rather than by index, since that is how a document
+addresses them: `engine.controllers.xr-controller-left`.
+
+Analog values are in [-1,1] for axes and [0,1] for triggers and pressure. A stick pushed away from
+the person reads positive on every device, which for WebXR means inverting what the runtime
+reports. Adapters shall report
 unknown inputs under their platform-native identifier rather than omitting them.
 
 ---
