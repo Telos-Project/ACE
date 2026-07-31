@@ -272,7 +272,7 @@ Direction is taken from the containing entity's forward axis (-Z). Position like
 | intensity | number | 1 | |
 | range | number | — | Falloff distance for point and spot |
 | angle | number | 0.7 | Cone half-angle in radians, spot only |
-| shadow | boolean \| object | false | `{ resolution, bias, near, far }` |
+| shadow | boolean \| object | false | `{ resolution, bias, near, far }`. Adapters shall register every mesh whose `shadow.cast` is not false as a caster, whichever of the light and the mesh was created first |
 
 **state**
 
@@ -543,7 +543,7 @@ Playback of named clips supplied by a mesh in the same entity, or by `source`.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| clip | string | — | Clip name; see the sibling mesh's `state.clips` |
+| clip | string | — | Clip name; see the sibling mesh's `state.clips`. Changing it shall stop the clip it replaces, since two clips playing at once blend into nothing |
 | speed | number | 1 | |
 | loop | boolean | true | |
 | weight | number | 1 | Blend weight when several animation components are active |
@@ -560,6 +560,9 @@ Playback of named clips supplied by a mesh in the same entity, or by `source`.
 | time | number | |
 | duration | number | |
 | finished | boolean | True for one frame when a non-looping clip completes |
+
+A loader commonly starts the first clip of a model itself. Which clip plays is the document's
+decision, so adapters shall stop whatever arrived running.
 
 ### 2.3.13 - script
 
@@ -620,7 +623,14 @@ For `type: "overlap"`, every entity within the radius is answered rather than th
 centre, and `normal` points from that point back toward the centre — so a document separates two
 bodies by moving along `normal` by `radius - distance`. Where the centre lies inside the other body
 there is no surface direction to report, and the normal points out through the nearest **side**
-face. The floor of a volume a body is standing inside is usually the nearest face of all, and
+face, with `distance` reported **negative**: how far in the query has gone along that normal.
+Answering zero would have a document separate by a fixed amount however deep it was, and anything
+moving faster than that per frame would walk through a step at a time.
+
+An overlap is answered from the state of the previous frame, so a document is responsible for not
+moving further in one step than the body it is moving. Beyond that, following the nearest face out
+of something thin can eject a body through its far side; a document that knows which way it was
+travelling should retreat along that instead. The floor of a volume a body is standing inside is usually the nearest face of all, and
 answering with it says the way out is downwards, which is no use to anything that walks: separating
 vertically belongs to a downward probe, and an overlap answers laterally.
 
@@ -636,6 +646,18 @@ wants: a downward ground probe will otherwise report the underside of whatever t
 standing beneath, and a document following that answer will place the subject on top of it. Tagging
 the surfaces that a probe should accept is how a document expresses the difference between the
 ground and the things resting on it.
+
+Tags cannot separate a floor from a roof, because a platform is both: something to stand on from
+above and something to walk beneath from below. A probe cast from overhead should therefore ask for
+every surface it passes rather than the nearest, by setting `limit` to zero, and the document should
+choose among the answers — the highest that is not further above the subject than it could climb.
+Nothing overhead should count while the subject is off the ground, or it will be caught on a roof
+at the top of a jump.
+
+How far above counts as climbable is the same decision as how far up a body's own volume begins.
+A body stopped by anything its shape touches cannot rise onto a step its shape is already resting
+against, so the step height and the clearance beneath the body are set against one another or
+neither works.
 
 `type: "hit-test"` requires an XR session with the "hit-test" feature and ignores origin and
 direction, using the session's tracked input ray or viewer pose.

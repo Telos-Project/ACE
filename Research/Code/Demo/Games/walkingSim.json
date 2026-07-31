@@ -1,0 +1,824 @@
+{
+	"packages": {
+		"world": {
+			"utilities": {
+				"settings": {
+					"properties": {
+						"tags": [
+							"world",
+							"telos-ace"
+						],
+						"data": {
+							"gravity": [
+								0,
+								-9.81,
+								0
+							],
+							"ambient": [
+								0.1,
+								0.12,
+								0.16
+							],
+							"horizon": 2000,
+							"background": {
+								"texture": "sky.cubemap"
+							},
+							"requires": [
+								"physics"
+							]
+						}
+					}
+				}
+			}
+		},
+		"sky": {
+			"utilities": {
+				"cubemap": {
+					"source": [
+						"https://raw.githubusercontent.com/BabylonJS/Assets/master/environments/sanGiuseppeBridge.env",
+						"https://playground.babylonjs.com/textures/skybox",
+						"https://www.babylonjs-playground.com/textures/skybox"
+					],
+					"properties": {
+						"tags": [
+							"texture",
+							"telos-ace"
+						],
+						"data": {
+							"cube": true
+						}
+					}
+				}
+			}
+		},
+		"sun": {
+			"properties": {
+				"meta": {
+					"data": {
+						"rotation": [
+							-0.72,
+							0.85,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "directional",
+							"color": "#fff0d8",
+							"intensity": 2.6,
+							"shadow": {
+								"resolution": 2048
+							}
+						}
+					}
+				}
+			}
+		},
+		"skyfill": {
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "ambient",
+							"color": "#7d98c4",
+							"intensity": 0.55
+						}
+					}
+				}
+			}
+		},
+		"terrain": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							0,
+							0
+						]
+					},
+					"tags": [
+						"ground"
+					]
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"source": [
+						"https://playground.babylonjs.com/textures/heightMap.png",
+						"https://www.babylonjs-playground.com/textures/heightMap.png"
+					],
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "heightmap",
+							"size": [
+								320,
+								0,
+								320
+							],
+							"elevation": [
+								-6,
+								42
+							],
+							"segments": 100,
+							"shadow": {
+								"receive": true
+							}
+						}
+					}
+				},
+				"surface": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#98a878",
+							"roughness": 0.95,
+							"metallic": 0,
+							"tiling": [
+								40,
+								40
+							],
+							"maps": {
+								"base": "https://playground.babylonjs.com/textures/grass.png",
+								"normal": "https://playground.babylonjs.com/textures/grassn.png"
+							}
+						}
+					}
+				},
+				"collider": {
+					"properties": {
+						"tags": [
+							"collider",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "heightmap",
+							"friction": 0.8
+						}
+					}
+				}
+			}
+		},
+		"player": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							30,
+							60
+						],
+						"rotation": [
+							0,
+							0,
+							0
+						],
+						"yaw": 0,
+						"pitch": -0.12,
+						"eye": 1.75,
+						"radius": 0.5,
+						"speed": 0,
+						"grade": 0,
+						"vr": 0,
+						"lost": 0
+					}
+				}
+			},
+			"packages": {
+				"head": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									1.75,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"camera": {
+							"properties": {
+								"tags": [
+									"camera",
+									"telos-ace"
+								],
+								"data": {
+									"projection": "perspective",
+									"fov": 1.15,
+									"near": 0.15,
+									"far": 2500,
+									"control": "none",
+									"xr": {
+										"mode": "vr",
+										"space": "local-floor",
+										"features": []
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"utilities": {
+				"ground": {
+					"properties": {
+						"tags": [
+							"query",
+							"telos-ace"
+						],
+						"data": {
+							"type": "ray",
+							"offset": [
+								0,
+								400,
+								0
+							],
+							"direction": [
+								0,
+								-1,
+								0
+							],
+							"distance": 1600,
+							"continuous": true,
+							"limit": 1,
+							"tags": [
+								"ground"
+							]
+						}
+					}
+				},
+				"walk": {
+					"content": "const s = JSON.parse(state);\nconst E = s.packages.engine;\nconst time = E.utilities.time.properties.state;\nconst kb = E.packages.controllers.utilities['keyboard-0'];\nconst pt = E.packages.controllers.utilities['pointer-0'];\nconst left = E.packages.controllers.utilities['xr-controller-left'];\nconst right = E.packages.controllers.utilities['xr-controller-right'];\nconst me = s.packages.player;\nconst d = me.properties.meta.data;\nconst dt = Math.min(time.delta, 0.1);\n\nconst view = me.packages.head.utilities.camera.properties.state;\nconst vr = !!(view && view.presenting);\n\nlet yaw = d.yaw || 0;\nlet pitch = d.pitch || 0;\nconst turned = yaw;\n\nlet mx = 0;\nlet mz = 0;\nlet rate = 4.6;\n\nif (vr) {\n\n\t// The headset supplies pitch and the whole of the look direction; the\n\t// document only owns the heading the rig is turned to.\n\tpitch = 0;\n\n\tconst rs = right ? right.properties.state.analog : null;\n\tyaw -= ((rs && rs['thumbstick-x']) || 0) * 2.2 * dt;\n\n\t// Walk where the left controller points, flattened onto the ground. The\n\t// ray is reported in world space, and the reference space the controller\n\t// is tracked in already carries the heading the player has turned to, so\n\t// \"relative to the way you are facing\" needs no further work here.\n\tconst ls = left ? left.properties.state.analog : null;\n\tconst lx = (ls && ls['thumbstick-x']) || 0;\n\tconst ly = (ls && ls['thumbstick-y']) || 0;\n\n\tlet fx = -Math.sin(yaw);\n\tlet fz = -Math.cos(yaw);\n\n\tconst ray = left && left.properties.state.ray\n\t\t? left.properties.state.ray.direction : null;\n\n\tif (ray) {\n\t\tconst flat = Math.hypot(ray[0], ray[2]);\n\t\tif (flat > 1e-3) { fx = ray[0] / flat; fz = ray[2] / flat; }\n\t}\n\n\t// Right of that heading, in a right handed Y up frame.\n\tmx = fx * ly - fz * lx;\n\tmz = fz * ly + fx * lx;\n\n\tconst grip = left ? left.properties.state.digital : [];\n\trate = grip.indexOf('squeeze') >= 0 ? 11 : 4.6;\n\n} else {\n\n\tif (pt) {\n\t\tconst a = pt.properties.state.analog;\n\t\tyaw -= (a.dx || 0) * 3.2;\n\t\tpitch += (a.dy || 0) * 3.2;\n\t\tpitch = Math.max(-1.35, Math.min(1.35, pitch));\n\t}\n\n\tconst keys = kb ? kb.properties.state.digital : [];\n\tconst on = k => keys.indexOf(k) >= 0;\n\n\tconst forward = (on('KeyW') || on('ArrowUp') ? 1 : 0) - (on('KeyS') || on('ArrowDown') ? 1 : 0);\n\tconst strafe = (on('KeyD') || on('ArrowRight') ? 1 : 0) - (on('KeyA') || on('ArrowLeft') ? 1 : 0);\n\n\tconst sy = Math.sin(yaw), cy = Math.cos(yaw);\n\tmx = -sy * forward + cy * strafe;\n\tmz = -cy * forward - sy * strafe;\n\n\trate = (on('ShiftLeft') || on('ShiftRight') ? 12 : 4.6);\n}\n\n// A stick half pushed walks half as fast; two keys held is still one speed.\nconst heading = Math.hypot(mx, mz);\nconst drive = Math.min(1, heading);\n\nif (heading > 1e-6) { mx /= heading; mz /= heading; }\n\nconst probe = me.utilities.ground.properties.state;\nconst hits = probe ? probe.hits : null;\nconst surface = hits && hits.length ? hits[0] : null;\n\n// Slope normalisation. Crossing a horizontal distance h over ground of\n// gradient g covers h * sqrt(1 + g*g) of actual surface, so holding the\n// distance travelled along the surface constant means shortening the\n// horizontal step by that same factor.\nlet grade = 0;\n\nif (surface && surface.normal && Math.abs(surface.normal[1]) > 1e-3) {\n\tconst n = surface.normal;\n\tgrade = -(mx * n[0] + mz * n[2]) / n[1];\n}\n\n// The overlap that stops a body is a frame behind it, so a step larger than\n// the body cannot be caught before it has passed through something thin.\n// Capping the step against the radius bounds that, and only ever bites at a\n// frame rate far below playable.\nconst step = Math.min(\n\trate * drive * dt / Math.sqrt(1 + grade * grade),\n\t(d.radius || 0.5) * 0.7\n);\n\nlet px = d.position[0] + mx * step;\nlet pz = d.position[2] + mz * step;\n\n// Turn about where the head actually is rather than about the rig origin.\n// Otherwise a player who has stepped away from the centre of their space is\n// swung sideways every time they rotate.\nif (false && vr && view.offset && Math.abs(yaw - turned) > 1e-9) {\n\n\tconst h = view.offset;\n\n\t// A head is never more than arm's reach from the middle of a play space.\n\t// Anything larger is not a head offset at all but a position reported in\n\t// some other frame, and turning about it would hurl the player across the\n\t// map. Turn about the rig instead, which is merely less comfortable.\n\tif (Math.hypot(h[0], h[2]) < 3) {\n\n\t\tconst spin = (x, z, a) => [\n\t\t\tx * Math.cos(a) + z * Math.sin(a),\n\t\t\t-x * Math.sin(a) + z * Math.cos(a)\n\t\t];\n\n\t\tconst was = spin(h[0], h[2], turned);\n\t\tconst now = spin(h[0], h[2], yaw);\n\n\t\t// And even a valid offset cannot justify moving further in one frame\n\t\t// than a person can lean.\n\t\tpx += Math.max(-0.5, Math.min(0.5, was[0] - now[0]));\n\t\tpz += Math.max(-0.5, Math.min(0.5, was[1] - now[1]));\n\t}\n}\n\n// Push out of anything solid already overlapped. Only the horizontal part\n// of each normal is used, so being blocked can never raise the player.\nconst bump = me.utilities.bump.properties.state;\nconst radius = d.radius || 0.5;\n\nif (bump && bump.hits) {\n\tfor (const hit of bump.hits) {\n\t\tconst depth = radius - hit.distance;\n\t\tif (depth <= 0) continue;\n\t\tconst n = hit.normal;\n\t\tconst flat = Math.hypot(n[0], n[2]);\n\t\tif (flat < 1e-4) continue;\n\t\tpx += (n[0] / flat) * depth;\n\t\tpz += (n[2] / flat) * depth;\n\t}\n}\n\nconst edge = 150;\npx = Math.max(-edge, Math.min(edge, px));\npz = Math.max(-edge, Math.min(edge, pz));\n\nlet py = d.position[1];\nlet lost = d.lost || 0;\n\nif (surface) {\n\n\tlost = 0;\n\n\t// Ease onto ground that is near, but close a large gap outright, so one\n\t// bad frame cannot leave the player drifting above or below the map.\n\tconst g = surface.point[1];\n\tpy = Math.abs(g - py) > 4 ? g : py + (g - py) * Math.min(1, 14 * dt);\n\n} else {\n\n\t// The probe is cast from above the player, so a player who has ended up\n\t// further below the map than the probe reaches can never find the ground\n\t// again. Rather than fall forever, climb back to an altitude the probe\n\t// can certainly see from and let it re-acquire.\n\tlost += 1;\n\n\tif (lost > 3) { py = 80; lost = 0; }\n}\n\n// Nothing in this scene belongs outside this band. Reaching it means\n// something has gone wrong, and staying there means never recovering.\nif (py > 400 || py < -400) { py = 80; lost = 0; }\n\nconst moving = drive > 0.01 ? 1 : 0;\nconst moved = Math.hypot(px - d.position[0], py - d.position[1], pz - d.position[2]);\nconst eye = d.eye || 1.75;\n\nreturn JSON.stringify({ packages: { player: {\n\tproperties: { meta: { data: {\n\t\tposition: [px, py, pz],\n\t\trotation: [0, yaw, 0],\n\t\tyaw: yaw,\n\t\tpitch: pitch,\n\t\tmoving: moving,\n\t\tgrade: grade,\n\t\tlost: lost,\n\t\tvr: vr ? 1 : 0,\n\t\tspeed: dt > 0 ? moved / dt : 0,\n\t\tdistance: (d.distance || 0) + (moving ? moved : 0)\n\t} } },\n\tpackages: { head: { properties: { meta: { data: {\n\t\t// A floor relative session measures eye height itself.\n\t\tposition: vr ? [0, 0, 0] : [0, eye, 0],\n\t\trotation: [pitch, 0, 0]\n\t} } } } }\n} } });",
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"mode": "blunt",
+							"output": "patch",
+							"order": 0
+						}
+					}
+				},
+				"bump": {
+					"properties": {
+						"tags": [
+							"query",
+							"telos-ace"
+						],
+						"data": {
+							"type": "overlap",
+							"offset": [
+								0,
+								0.95,
+								0
+							],
+							"shape": {
+								"shape": "sphere",
+								"size": 0.5
+							},
+							"tags": [
+								"solid"
+							],
+							"limit": 0,
+							"continuous": true
+						}
+					}
+				}
+			}
+		},
+		"ambience": {
+			"utilities": {
+				"track": {
+					"source": [
+						"https://raw.githubusercontent.com/BabylonJS/Assets/master/sound/pirateFun.mp3",
+						"https://raw.githubusercontent.com/BabylonJS/Babylon.js/master/packages/tools/playground/public/sounds/violons11.wav",
+						"https://upload.wikimedia.org/wikipedia/commons/0/0a/20090610_0_ambience.ogg"
+					],
+					"properties": {
+						"tags": [
+							"audio",
+							"telos-ace"
+						],
+						"data": {
+							"loop": true,
+							"volume": 0.4,
+							"spatial": false,
+							"autoplay": false
+						}
+					}
+				},
+				"start": {
+					"content": "const s = JSON.parse(state);\nconst display = s.packages.engine.utilities.display.properties.state;\nconst track = s.packages.ambience.utilities.track.properties;\n\nif (!display.gesture) return;\nif (!track.state || !track.state.loaded) return;\nif (track.state.playing) return;\nif (s.packages.ambience.properties.meta.data.started) return;\n\nreturn JSON.stringify({ packages: { ambience: {\n\tproperties: { meta: { data: { started: true } } },\n\tutilities: { track: { properties: { data: { play: true } } } }\n} } });",
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 10
+						}
+					}
+				}
+			},
+			"properties": {
+				"meta": {
+					"data": {
+						"started": false
+					}
+				}
+			}
+		},
+		"cursor": {
+			"utilities": {
+				"lock": {
+					"content": "const s = JSON.parse(state);\nif (s.packages.engine.utilities.display.properties.data.cursor === 'locked') return;\nreturn JSON.stringify({ packages: { engine: { utilities: { display: { properties: { data: { cursor: 'locked' } } } } } } });",
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": -10
+						}
+					}
+				}
+			}
+		},
+		"landmarks": {
+			"packages": {
+				"cairn": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									26,
+									200,
+									10
+								],
+								"scale": [
+									3,
+									4,
+									3
+								],
+								"settled": false,
+								"rise": 2.0
+							},
+							"tags": [
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "cylinder",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 7
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"roughness": 1,
+									"tiling": [
+										2,
+										2
+									],
+									"maps": {
+										"base": "https://playground.babylonjs.com/textures/rock.png",
+										"normal": "https://playground.babylonjs.com/textures/rockn.png"
+									}
+								}
+							}
+						},
+						"probe": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "ray",
+									"direction": [
+										0,
+										-1,
+										0
+									],
+									"distance": 500,
+									"continuous": true,
+									"limit": 1,
+									"tags": [
+										"ground"
+									]
+								}
+							}
+						}
+					}
+				},
+				"sign": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									200,
+									40
+								],
+								"settled": false,
+								"rise": 3.0
+							}
+						}
+					},
+					"utilities": {
+						"label": {
+							"content": "walk",
+							"properties": {
+								"tags": [
+									"text",
+									"telos-ace"
+								],
+								"data": {
+									"size": 2.2,
+									"color": "#ffffff",
+									"billboard": "y"
+								}
+							}
+						},
+						"probe": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "ray",
+									"direction": [
+										0,
+										-1,
+										0
+									],
+									"distance": 500,
+									"continuous": true,
+									"limit": 1,
+									"tags": [
+										"ground"
+									]
+								}
+							}
+						}
+					}
+				},
+				"monolith": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-60,
+									200,
+									-40
+								],
+								"settled": false,
+								"rise": 13.0
+							},
+							"tags": [
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										4,
+										26,
+										4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#1a1c22",
+									"roughness": 0.25,
+									"metallic": 0.8
+								}
+							}
+						},
+						"probe": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "ray",
+									"direction": [
+										0,
+										-1,
+										0
+									],
+									"distance": 500,
+									"continuous": true,
+									"limit": 1,
+									"tags": [
+										"ground"
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"utilities": {
+				"settle": {
+					"content": "const s = JSON.parse(state);\nconst marks = s.packages.landmarks.packages;\nconst patch = {};\nlet dirty = false;\n\nObject.keys(marks).forEach(name => {\n\tconst mark = marks[name];\n\tconst data = mark.properties.meta.data;\n\tif (data.settled) return;\n\tconst probe = mark.utilities.probe;\n\tif (!probe || !probe.properties.state) return;\n\tconst hits = probe.properties.state.hits;\n\tif (!hits || !hits.length) return;\n\tconst p = data.position;\n\tpatch[name] = { properties: { meta: { data: {\n\t\tposition: [p[0], hits[0].point[1] + (data.rise || 0), p[2]],\n\t\tsettled: true\n\t} } }, utilities: { probe: null } };\n\tdirty = true;\n});\n\nif (!dirty) return;\nreturn JSON.stringify({ packages: { landmarks: { packages: patch } } });",
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 5
+						}
+					}
+				}
+			}
+		},
+		"crates": {
+			"packages": {
+				"a": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									4,
+									60,
+									52
+								]
+							},
+							"tags": [
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": 1.6
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#b6813f",
+									"roughness": 0.8
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"restitution": 0.1
+								}
+							}
+						},
+						"body": {
+							"properties": {
+								"tags": [
+									"body",
+									"telos-ace"
+								],
+								"data": {
+									"mode": "dynamic",
+									"mass": 3
+								}
+							}
+						}
+					}
+				},
+				"b": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-5,
+									66,
+									48
+								]
+							},
+							"tags": [
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": 1.2
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#8a5f33",
+									"roughness": 0.85
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"restitution": 0.1
+								}
+							}
+						},
+						"body": {
+							"properties": {
+								"tags": [
+									"body",
+									"telos-ace"
+								],
+								"data": {
+									"mode": "dynamic",
+									"mass": 1.5
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"hud": {
+			"properties": {
+				"meta": {
+					"data": {
+						"space": "camera",
+						"position": [
+							0,
+							-0.34,
+							-1
+						],
+						"rotation": [
+							0,
+							0,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"readout": {
+					"properties": {
+						"tags": [
+							"text",
+							"telos-ace"
+						],
+						"data": {
+							"size": 0.055,
+							"color": "#e8eefc",
+							"width": 0.95,
+							"align": "center",
+							"billboard": "none"
+						}
+					},
+					"content": "0m   0\u00b0   alt --   0fps"
+				},
+				"status": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 20
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst E = s.packages.engine;\nconst time = E.utilities.time.properties.state;\nconst display = E.utilities.display.properties.state;\nconst hud = s.packages.hud;\nconst patch = { packages: { hud: { packages: {} , utilities: {} } } };\nlet dirty = false;\n\n// The prompt is shown only while the pointer is free.\nconst wantPrompt = !display.locked && !display.xr.presenting;\nif (hud.packages.prompt.properties.meta.data.enabled !== wantPrompt) {\n\tpatch.packages.hud.packages.prompt = { properties: { meta: { data: { enabled: wantPrompt } } } };\n\tdirty = true;\n}\n\n// The readout is rebuilt on change, so it is refreshed a few times a second.\nif (time.frame % 20 === 0) {\n\tconst p = s.packages.player.properties.meta.data;\n\tconst probe = s.packages.player.utilities.ground.properties.state;\n\tconst ground = probe && probe.hits.length ? probe.hits[0].point[1].toFixed(0) : '--';\n\tconst heading = Math.round(((-p.yaw * 180 / Math.PI) % 360 + 360) % 360);\n\tconst v = s.packages.player.packages.head.utilities.camera.properties.state;\n\tif (p.vr) {\n\t\tconst o = v && v.offset ? v.offset : [0, 0, 0];\n\t\tconst line = (p.speed || 0).toFixed(1) + 'm/s   ' +\n\t\t\tMath.round(p.distance || 0) + 'm   grade ' + (p.grade || 0).toFixed(2) +\n\t\t\t'   pos ' + p.position.map(n => n.toFixed(0)).join(' ') +\n\t\t\t'   ' + (v && v.rigged ? v.rigged : 'no rig');\n\t\tif (hud.utilities.readout.content !== line) {\n\t\t\tpatch.packages.hud.utilities.readout = { content: line };\n\t\t\tdirty = true;\n\t\t}\n\t\tif (dirty) return JSON.stringify(patch);\n\t\treturn;\n\t}\n\tconst line = Math.round(p.distance || 0) + 'm   ' + heading + '\\u00b0   ' + (p.speed || 0).toFixed(1) + 'm/s   grade ' + (p.grade || 0).toFixed(2) + '   ' + display.fps + 'fps' + (display.xr.presenting ? '   VR' : '');\n\tif (hud.utilities.readout.content !== line) {\n\t\tpatch.packages.hud.utilities.readout = { content: line };\n\t\tdirty = true;\n\t}\n}\n\nif (!dirty) return;\nreturn JSON.stringify(patch);"
+				}
+			},
+			"packages": {
+				"prompt": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									0.42,
+									0
+								],
+								"enabled": true
+							}
+						}
+					},
+					"utilities": {
+						"label": {
+							"properties": {
+								"tags": [
+									"text",
+									"telos-ace"
+								],
+								"data": {
+									"size": 0.075,
+									"color": "#ffd9a0",
+									"width": 1.1,
+									"align": "center",
+									"billboard": "none"
+								}
+							},
+							"content": "click to walk   \u00b7   WASD, shift to run, mouse to look"
+						}
+					}
+				}
+			}
+		}
+	}
+}

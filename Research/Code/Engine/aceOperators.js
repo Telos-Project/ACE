@@ -213,6 +213,53 @@
 		return mesh;
 	};
 
+	/*
+
+		A shadow generator casts nothing until it is told what to cast. Meshes
+		and lights arrive in either order, so both ends register: a new mesh
+		joins every generator, and a new generator collects every mesh.
+
+	*/
+	const shadows = (context, mesh) => {
+
+		if(mesh == null || context.meta.scene.lights == null)
+			return;
+
+		let casters = [mesh].concat(
+			mesh.getChildMeshes != null ? mesh.getChildMeshes() : []
+		).filter(target => target.getTotalVertices != null);
+
+		context.meta.scene.lights.forEach(light => {
+
+			let generator = light.getShadowGenerator != null ?
+				light.getShadowGenerator() : null;
+
+			if(generator == null || generator.addShadowCaster == null)
+				return;
+
+			casters.forEach(target => generator.addShadowCaster(target, false));
+		});
+	};
+
+	const collectShadowCasters = (context, generator) => {
+
+		Object.values(context.instances).filter(
+			instance => instance.type === "mesh" || instance.type === "text"
+		).forEach(instance => {
+
+			let mesh = instance.object.mesh;
+
+			if(mesh == null || instance.record?.data?.shadow?.cast === false)
+				return;
+
+			[mesh].concat(
+				mesh.getChildMeshes != null ? mesh.getChildMeshes() : []
+			).filter(
+				target => target.getTotalVertices != null
+			).forEach(target => generator.addShadowCaster(target, false));
+		});
+	};
+
 	const recordFor = (context, entityKey, type) =>
 		context.resolved.components.find(record =>
 			record.type === type && record.entityKey === entityKey
@@ -1177,6 +1224,10 @@
 						if(settings.bias != null)
 							object.generator.bias = settings.bias;
 
+						object.generator.usePercentageCloserFiltering = true;
+
+						collectShadowCasters(context, object.generator);
+
 					} catch(error) { /* light type cannot cast shadows */ }
 				}
 
@@ -2066,6 +2117,17 @@
 
 						object.content = content;
 
+						/*
+
+							Loaders commonly start the first clip themselves.
+							Which clip plays is the document's decision, so
+							whatever arrived running is stopped.
+
+						*/
+						(content.animationGroups != null ?
+							content.animationGroups : []
+						).forEach(group => group.stop());
+
 						operators[5].finish(context, instance, object);
 
 						rebuildImpostor(context, instance.entityKey);
@@ -2096,6 +2158,9 @@
 					return;
 
 				own(mesh, instance.entityKey);
+
+				if(data.shadow?.cast !== false)
+					shadows(context, mesh);
 
 				let meshes = mesh.getChildMeshes != null ?
 					[mesh].concat(mesh.getChildMeshes()) : [mesh];
@@ -2763,6 +2828,16 @@
 				if(group == null)
 					return;
 
+				/*
+
+					Switching clips has to stop the one being replaced. Leaving
+					it running blends two poses together and the figure comes
+					apart.
+
+				*/
+				if(object.group != null && object.group !== group)
+					object.group.stop();
+
 				object.group = group;
 
 				group.speedRatio = instance.data.speed != null ?
@@ -3034,9 +3109,22 @@
 								[new BABYLON.Vector3(0, 0, 1), max.z - centre.z]
 							];
 
-							normal = faces.reduce(
+							let escape = faces.reduce(
 								(best, face) => face[1] < best[1] ? face : best
-							)[0];
+							);
+
+							normal = escape[0];
+
+							/*
+
+								Inside, the distance is reported as how far in
+								the query has gone, negatively. Answering zero
+								would have a document separate by a fixed amount
+								however deep it was, and anything moving faster
+								than that per frame walks straight through.
+
+							*/
+							distance = -escape[1];
 						}
 
 						hits.push({

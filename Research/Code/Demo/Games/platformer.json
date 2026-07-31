@@ -1,0 +1,1089 @@
+{
+	"packages": {
+		"world": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"settings": {
+					"properties": {
+						"tags": [
+							"world",
+							"telos-ace"
+						],
+						"data": {
+							"gravity": null,
+							"background": "#141821",
+							"ambient": [
+								0.05,
+								0.06,
+								0.09
+							],
+							"horizon": 900
+						}
+					}
+				}
+			}
+		},
+		"sun": {
+			"properties": {
+				"meta": {
+					"data": {
+						"rotation": [
+							-0.95,
+							0.7,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "directional",
+							"color": "#fff2dd",
+							"intensity": 2.6,
+							"shadow": {
+								"resolution": 2048,
+								"bias": 0.0009
+							}
+						}
+					}
+				}
+			}
+		},
+		"sky": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "ambient",
+							"color": "#6d86bd",
+							"intensity": 0.55
+						}
+					}
+				}
+			}
+		},
+		"ground": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							0,
+							0
+						]
+					},
+					"tags": [
+						"ground"
+					]
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "ground",
+							"size": [
+								120,
+								0,
+								120
+							],
+							"segments": 1,
+							"shadow": {
+								"cast": false,
+								"receive": true
+							}
+						}
+					}
+				},
+				"surface": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#2f3742",
+							"roughness": 0.95
+						}
+					}
+				}
+			}
+		},
+		"course": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"hurdle0": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-6,
+									0.45,
+									-10.0
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										2.4,
+										0.9,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#7d8590",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"hurdle1": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-2,
+									0.45,
+									-10.0
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										2.4,
+										0.9,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#7d8590",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"hurdle2": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									2,
+									0.45,
+									-10.0
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										2.4,
+										0.9,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#7d8590",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"hurdle3": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									6,
+									0.45,
+									-10.0
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										2.4,
+										0.9,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#7d8590",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"step0": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									14,
+									0.25,
+									-4.0
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										5,
+										0.5,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7680",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"step1": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									14,
+									0.9,
+									-1.4
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										5,
+										1.8,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7680",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"step2": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									14,
+									1.55,
+									1.2000000000000002
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										5,
+										3.1,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7680",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"step3": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									14,
+									2.8000000000000003,
+									3.8000000000000007
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										5,
+										5.6000000000000005,
+										2.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7680",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"platform": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									14,
+									3.6,
+									8
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										8,
+										0.8,
+										8
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5f6670",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"pillar0": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-14,
+									2.6,
+									4
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.8,
+										5.2,
+										1.8
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#4d535c",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"pillar1": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-9,
+									2.6,
+									10
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.8,
+										5.2,
+										1.8
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#4d535c",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"pillar2": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-16,
+									2.6,
+									12
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.8,
+										5.2,
+										1.8
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#4d535c",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"pillar3": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-4,
+									2.6,
+									16
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.8,
+										5.2,
+										1.8
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#4d535c",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				},
+				"wall": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									4,
+									1.4,
+									14
+								]
+							},
+							"tags": [
+								"ground",
+								"solid"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										16,
+										2.8,
+										1.2
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#565c66",
+									"roughness": 0.85
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"avatar": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							0,
+							6
+						],
+						"rotation": [
+							0,
+							0,
+							0
+						],
+						"facing": 0,
+						"vy": 0,
+						"grounded": 1,
+						"radius": 0.45,
+						"clip": "Idle",
+						"speed": 0,
+						"grade": 0,
+						"distance": 0,
+						"jumps": 0,
+						"step": 0.55
+					}
+				}
+			},
+			"utilities": {
+				"ground": {
+					"properties": {
+						"tags": [
+							"query",
+							"telos-ace"
+						],
+						"data": {
+							"type": "ray",
+							"offset": [
+								0,
+								40,
+								0
+							],
+							"direction": [
+								0,
+								-1,
+								0
+							],
+							"distance": 200,
+							"continuous": true,
+							"limit": 0,
+							"tags": [
+								"ground"
+							]
+						}
+					}
+				},
+				"bump": {
+					"properties": {
+						"tags": [
+							"query",
+							"telos-ace"
+						],
+						"data": {
+							"type": "overlap",
+							"offset": [
+								0,
+								1.0,
+								0
+							],
+							"shape": {
+								"shape": "sphere",
+								"size": 0.45
+							},
+							"tags": [
+								"solid"
+							],
+							"limit": 0,
+							"continuous": true
+						}
+					}
+				},
+				"move": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 0
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst E = s.packages.engine;\nconst time = E.utilities.time.properties.state;\nconst kb = E.packages.controllers.utilities['keyboard-0'];\nconst pt = E.packages.controllers.utilities['pointer-0'];\n\nconst me = s.packages.avatar;\nconst d = me.properties.meta.data;\nconst rig = s.packages.rig.properties.meta.data;\nconst dt = Math.min(time.delta, 0.1);\nconst radius = d.radius || 0.45;\n\nconst keys = kb ? kb.properties.state.digital : [];\nconst on = k => keys.indexOf(k) >= 0;\n\n// The camera is what \"forward\" means in a third person view, so it is turned\n// first and the avatar is steered relative to where it ended up.\nlet yaw = rig.yaw || 0;\nlet pitch = rig.pitch != null ? rig.pitch : -0.28;\n\nif (pt) {\n\tconst a = pt.properties.state.analog;\n\tyaw -= (a.dx || 0) * 3.2;\n\tpitch += (a.dy || 0) * 3.2;\n\t// Negative pitch swings the eye up and behind, which is where a third\n\t// person view wants to sit; positive brings it down to look up.\n\tpitch = Math.max(-1.0, Math.min(0.30, pitch));\n}\n\nconst forward = (on('KeyW') || on('ArrowUp') ? 1 : 0) - (on('KeyS') || on('ArrowDown') ? 1 : 0);\nconst strafe = (on('KeyD') || on('ArrowRight') ? 1 : 0) - (on('KeyA') || on('ArrowLeft') ? 1 : 0);\n\nconst sy = Math.sin(yaw), cy = Math.cos(yaw);\nlet mx = -sy * forward + cy * strafe;\nlet mz = -cy * forward - sy * strafe;\n\nconst push = Math.hypot(mx, mz);\nconst drive = Math.min(1, push);\n\nif (push > 1e-6) { mx /= push; mz /= push; }\n\n// Backing up is the one time a figure should not point where it is going,\n// and it is also the one time the backward clip suits it. The same condition\n// decides both.\nconst backing = forward < 0 && Math.abs(forward) >= Math.abs(strafe);\n\nconst running = on('ShiftLeft') || on('ShiftRight');\nconst rate = running ? 8.4 : 3.4;\n\nconst probe = me.utilities.ground.properties.state;\nconst hits = probe ? probe.hits : null;\n\n// The probe looks down from well overhead, so its answers arrive highest\n// first. Taking the first of them puts the avatar on the roof of anything she\n// walks beneath. What is underfoot is the highest surface that is not above\n// what she could step onto, and while she is in the air nothing above her\n// counts at all, or jumping under a platform would hoist her onto it at the\n// top of the arc.\nconst reach = d.grounded ? (d.step || 0.9) : 0.05;\n\nlet surface = null;\n\nif (hits) {\n\tfor (const hit of hits) {\n\t\tif (hit.point[1] <= d.position[1] + reach) { surface = hit; break; }\n\t}\n}\n\n// Slope normalisation, as on foot elsewhere: a climb costs ground covered\n// rather than adding to the speed.\nlet grade = 0;\n\nif (surface && surface.normal && Math.abs(surface.normal[1]) > 1e-3) {\n\tconst n = surface.normal;\n\tgrade = -(mx * n[0] + mz * n[2]) / n[1];\n}\n\n// The overlap that stops a body is a frame behind it, so a step larger than\n// the body cannot be caught before it has passed through something thin.\n// Capping the step against the radius bounds that, and only ever bites at a\n// frame rate far below playable.\nconst step = Math.min(\n\trate * drive * dt / Math.sqrt(1 + grade * grade),\n\tradius * 0.7\n);\n\nlet px = d.position[0] + mx * step;\nlet pz = d.position[2] + mz * step;\n\n// Anything solid is pushed out of horizontally, so running into a pillar\n// stops the avatar rather than lifting them onto it.\nconst bump = me.utilities.bump.properties.state;\n\nif (bump && bump.hits) {\n\tfor (const hit of bump.hits) {\n\n\t\tconst depth = radius - hit.distance;\n\t\tif (depth <= 0) continue;\n\n\t\tlet nx = hit.normal[0];\n\t\tlet nz = hit.normal[2];\n\n\t\t// A negative distance means the body is already inside. Following the\n\t\t// nearest face out of a thin obstacle can eject it through the far\n\t\t// side, so it retreats the way it came in instead, which is known here\n\t\t// and not to the engine.\n\t\tif (hit.distance < 0 && (mx !== 0 || mz !== 0)) {\n\t\t\tnx = -mx;\n\t\t\tnz = -mz;\n\t\t}\n\n\t\tconst flat = Math.hypot(nx, nz);\n\t\tif (flat < 1e-4) continue;\n\n\t\tpx += (nx / flat) * depth;\n\t\tpz += (nz / flat) * depth;\n\t}\n}\n\nconst edge = 44;\npx = Math.max(-edge, Math.min(edge, px));\npz = Math.max(-edge, Math.min(edge, pz));\n\n// Falling and landing. The probe reports whatever is directly underneath,\n// which is the top of a block when there is one, so the same arithmetic\n// lands on the ground and on the course.\nconst floor = surface ? surface.point[1] : d.position[1];\n\nlet py = d.position[1];\nlet vy = d.vy || 0;\nlet grounded = d.grounded ? 1 : 0;\nlet jumped = 0;\n\nif (grounded && on('Space')) {\n\tvy = 9.4;\n\tgrounded = 0;\n\tjumped = 1;\n}\n\nvy -= 26 * dt;\npy += vy * dt;\n\nif (vy <= 0 && py <= floor) {\n\tpy = floor;\n\tvy = 0;\n\tgrounded = 1;\n} else if (py > floor + 0.02) {\n\tgrounded = 0;\n}\n\n// Nothing here belongs below the course; a bad frame should not be permanent.\nif (py < -60) { py = floor; vy = 0; }\n\n// The avatar turns to face the way it is going, rather than snapping.\nlet facing = d.facing || 0;\n\nif (drive > 0.01) {\n\tconst ax = backing ? -mx : mx;\n\tconst az = backing ? -mz : mz;\n\tconst want = Math.atan2(-ax, -az);\n\tlet turn = ((want - facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;\n\tfacing += turn * Math.min(1, 14 * dt);\n}\n\n// Which clip suits what the avatar is doing. The model has no jump, so it\n// holds its idle pose in the air.\nlet clip = 'Idle';\nlet ratio = 1;\n\nif (!grounded) {\n\tclip = 'Idle';\n} else if (drive > 0.05) {\n\tif (backing) {\n\t\tclip = 'WalkingBack';\n\t\tratio = 1.1;\n\t} else {\n\t\tclip = 'Walking';\n\t\tratio = running ? 1.9 : 1.05;\n\t}\n}\n\n// The camera rig chases the avatar rather than being welded to it, which\n// keeps a landing from jolting the view.\nconst chase = Math.min(1, 12 * dt);\nconst rx = (rig.position ? rig.position[0] : px) + (px - (rig.position ? rig.position[0] : px)) * chase;\nconst ry = (rig.position ? rig.position[1] : py) + (py - (rig.position ? rig.position[1] : py)) * chase;\nconst rz = (rig.position ? rig.position[2] : pz) + (pz - (rig.position ? rig.position[2] : pz)) * chase;\n\nconst moved = Math.hypot(px - d.position[0], pz - d.position[2]);\n\nconst patch = { packages: {\n\tavatar: { properties: { meta: { data: {\n\t\tposition: [px, py, pz],\n\t\trotation: [0, facing, 0],\n\t\tfacing: facing,\n\t\tvy: vy,\n\t\tgrounded: grounded,\n\t\tclip: clip,\n\t\tgrade: grade,\n\t\tspeed: dt > 0 ? moved / dt : 0,\n\t\tdistance: (d.distance || 0) + moved\n\t} } } },\n\trig: { properties: { meta: { data: {\n\t\tposition: [rx, ry, rz],\n\t\trotation: [0, yaw, 0],\n\t\tyaw: yaw,\n\t\tpitch: pitch\n\t} } }, packages: { arm: { properties: { meta: { data: {\n\t\trotation: [pitch, 0, 0]\n\t} } } } } }\n} };\n\n// A clip is only restarted when it actually changes.\nif (d.clip !== clip) {\n\tpatch.packages.avatar.packages = { body: { utilities: { motion: {\n\t\tproperties: { data: { clip: clip, speed: ratio, play: true } }\n\t} } } };\n} else {\n\tpatch.packages.avatar.packages = { body: { utilities: { motion: {\n\t\tproperties: { data: { speed: ratio } }\n\t} } } };\n}\n\nif (jumped) {\n\tpatch.packages.avatar.properties.meta.data.jumps = (d.jumps || 0) + 1;\n}\n\nreturn JSON.stringify(patch);"
+				}
+			},
+			"packages": {
+				"body": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									0,
+									0
+								],
+								"scale": 0.1,
+								"rotation": [
+									0,
+									3.141592653589793,
+									0
+								],
+								"faces": "+z"
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shadow": {
+										"cast": true,
+										"receive": true
+									}
+								}
+							},
+							"source": [
+								"https://raw.githubusercontent.com/BabylonJS/Assets/master/meshes/HVGirl.glb"
+							]
+						},
+						"motion": {
+							"properties": {
+								"tags": [
+									"animation",
+									"telos-ace"
+								],
+								"data": {
+									"clip": "Idle",
+									"speed": 1,
+									"loop": true,
+									"play": true
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"rig": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							0,
+							6
+						],
+						"rotation": [
+							0,
+							0,
+							0
+						],
+						"yaw": 0,
+						"pitch": -0.28
+					}
+				}
+			},
+			"packages": {
+				"arm": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									1.55,
+									0
+								],
+								"rotation": [
+									-0.28,
+									0,
+									0
+								]
+							}
+						}
+					},
+					"packages": {
+						"eye": {
+							"properties": {
+								"meta": {
+									"data": {
+										"position": [
+											0,
+											0,
+											5.2
+										]
+									}
+								}
+							},
+							"utilities": {
+								"camera": {
+									"properties": {
+										"tags": [
+											"camera",
+											"telos-ace"
+										],
+										"data": {
+											"projection": "perspective",
+											"fov": 1.0,
+											"near": 0.1,
+											"far": 900,
+											"control": "none"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"cursor": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"lock": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": -10
+						}
+					},
+					"content": "const s = JSON.parse(state);\nif (s.packages.engine.utilities.display.properties.data.cursor === 'locked') return;\nreturn JSON.stringify({ packages: { engine: { utilities: { display: { properties: { data: { cursor: 'locked' } } } } } } });"
+				}
+			}
+		},
+		"hud": {
+			"properties": {
+				"meta": {
+					"data": {
+						"space": "camera",
+						"position": [
+							0,
+							-0.34,
+							-1
+						]
+					}
+				}
+			},
+			"utilities": {
+				"readout": {
+					"properties": {
+						"tags": [
+							"text",
+							"telos-ace"
+						],
+						"data": {
+							"size": 0.05,
+							"color": "#dfe6f2",
+							"width": 1.0,
+							"align": "center",
+							"shadow": {
+								"cast": false
+							}
+						}
+					},
+					"content": "W A S D   shift to run   space to jump"
+				},
+				"status": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 20
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst t = s.packages.engine.utilities.time.properties.state;\nif (t.frame % 20 !== 0) return;\nconst d = s.packages.avatar.properties.meta.data;\nconst m = s.packages.avatar.packages.body.utilities.mesh.properties.state;\nconst line = (m && m.loaded ? d.clip : 'loading avatar') +\n\t'   ' + (d.speed || 0).toFixed(1) + 'm/s' +\n\t'   ' + Math.round(d.distance || 0) + 'm' +\n\t'   jumps ' + (d.jumps || 0) +\n\t(d.grounded ? '' : '   airborne');\nif (s.packages.hud.utilities.readout.content === line) return;\nreturn JSON.stringify({ packages: { hud: { utilities: { readout: { content: line } } } } });"
+				}
+			}
+		}
+	}
+}

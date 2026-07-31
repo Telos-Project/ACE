@@ -1,0 +1,1002 @@
+{
+	"packages": {
+		"world": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"settings": {
+					"properties": {
+						"tags": [
+							"world",
+							"telos-ace"
+						],
+						"data": {
+							"gravity": null,
+							"background": "#000000",
+							"ambient": [
+								0,
+								0,
+								0
+							]
+						}
+					}
+				}
+			}
+		},
+		"view": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							0,
+							40
+						]
+					}
+				}
+			},
+			"utilities": {
+				"camera": {
+					"properties": {
+						"tags": [
+							"camera",
+							"telos-ace"
+						],
+						"data": {
+							"projection": "orthographic",
+							"size": 40,
+							"near": 1,
+							"far": 200,
+							"control": "none"
+						}
+					}
+				}
+			}
+		},
+		"rails": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"top": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									18.6,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										62,
+										0.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#ffffff",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"bottom": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-18.6,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										62,
+										0.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#ffffff",
+									"unlit": true
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"net": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"dash0": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-16.5,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash1": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-13.9,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash2": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-11.3,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash3": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-8.7,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash4": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-6.1,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash5": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-3.5,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash6": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-0.9,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash7": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									1.7,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash8": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									4.3,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash9": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									6.9,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash10": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									9.5,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash11": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									12.1,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				},
+				"dash12": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									14.7,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "plane",
+									"size": [
+										0.4,
+										1.6,
+										1
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5a5a5a",
+									"unlit": true
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"left": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							-27,
+							0,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "plane",
+							"size": [
+								1,
+								6,
+								1
+							]
+						}
+					}
+				},
+				"surface": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#ffffff",
+							"unlit": true
+						}
+					}
+				}
+			}
+		},
+		"right": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							27,
+							0,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "plane",
+							"size": [
+								1,
+								6,
+								1
+							]
+						}
+					}
+				},
+				"surface": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#ffffff",
+							"unlit": true
+						}
+					}
+				}
+			}
+		},
+		"ball": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							0,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "plane",
+							"size": [
+								1,
+								1,
+								1
+							]
+						}
+					}
+				},
+				"surface": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#ffffff",
+							"unlit": true
+						}
+					}
+				}
+			}
+		},
+		"score": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"left": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-11,
+									13.5,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"label": {
+							"properties": {
+								"tags": [
+									"text",
+									"telos-ace"
+								],
+								"data": {
+									"size": 5.5,
+									"color": "#ffffff",
+									"width": 9,
+									"align": "center"
+								}
+							},
+							"content": "0"
+						}
+					}
+				},
+				"right": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									11,
+									13.5,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"label": {
+							"properties": {
+								"tags": [
+									"text",
+									"telos-ace"
+								],
+								"data": {
+									"size": 5.5,
+									"color": "#ffffff",
+									"width": 9,
+									"align": "center"
+								}
+							},
+							"content": "0"
+						}
+					}
+				}
+			}
+		},
+		"prompt": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							-8,
+							0
+						],
+						"enabled": true
+					}
+				}
+			},
+			"utilities": {
+				"label": {
+					"properties": {
+						"tags": [
+							"text",
+							"telos-ace"
+						],
+						"data": {
+							"size": 1.9,
+							"color": "#9a9a9a",
+							"width": 46,
+							"align": "center"
+						}
+					},
+					"content": "W / S          UP / DOWN"
+				}
+			}
+		},
+		"game": {
+			"properties": {
+				"meta": {
+					"data": {
+						"left": 0,
+						"right": 0,
+						"ball": [
+							0,
+							0
+						],
+						"speed": [
+							22,
+							7
+						],
+						"score": [
+							0,
+							0
+						],
+						"wait": 0,
+						"seed": 20260728,
+						"rallies": 0,
+						"started": false,
+						"bank": 0,
+						"ticks": 0
+					}
+				}
+			},
+			"utilities": {
+				"begin": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 0
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst g = s.packages.game.properties.meta.data;\n\nif (g.started) return;\n\nconst E = s.packages.engine;\nconst kb = E.packages.controllers.utilities['keyboard-0'];\nconst keys = kb ? kb.properties.state.digital : [];\n\n// Any of the four controls begins the match.\nconst ready = ['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown'].some(k => keys.indexOf(k) >= 0);\n\nif (!ready) return;\n\nreturn JSON.stringify({ packages: {\n\tgame: { properties: { meta: { data: { started: true, wait: 0.6 } } } },\n\tprompt: { properties: { meta: { data: { enabled: false } } } }\n} });"
+				},
+				"play": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 1
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst E = s.packages.engine;\nconst time = E.utilities.time.properties.state;\nconst kb = E.packages.controllers.utilities['keyboard-0'];\nconst g = s.packages.game.properties.meta.data;\n\n// A fixed step keeps the rally identical whatever the display is doing.\nconst dt = Math.min(time.delta, 0.05);\n// The rally advances on a fixed step and banks whatever is left over, so it\n// is paced by the clock rather than by however often the display happens to\n// ask for a frame. A game stepped straight from the frame delta plays faster\n// on a faster screen.\nconst STEP = 1 / 120;\nlet bank = Math.min((g.bank || 0) + dt, 0.25);\nlet ticks = g.ticks || 0;\n\nconst keys = kb ? kb.properties.state.digital : [];\nconst on = k => keys.indexOf(k) >= 0;\n\nconst HALF = 18;        // half the height of the court\nconst OUT = 31;         // beyond this is a point\nconst FACE = 27;        // where the paddles stand\nconst PAD = 3;          // half a paddle\nconst R = 0.5;          // half the ball\n\nlet ly = g.left;\nlet ry = g.right;\n\nconst reach = 30 * STEP;\n\nconst limit = HALF - PAD;\n\nlet bx = g.ball[0];\nlet by = g.ball[1];\nlet vx = g.speed[0];\nlet vy = g.speed[1];\nlet scored = g.score.slice();\nlet wait = g.wait || 0;\nlet seed = g.seed || 1;\nlet rallies = g.rallies || 0;\n\n\n// A small deterministic generator, so a serve is unpredictable to play\n// against but identical to replay.\nconst next = () => {\n\tseed = (seed * 1103515245 + 12345) % 2147483648;\n\treturn seed / 2147483648;\n};\n\nconst serve = (toward) => {\n\tbx = 0;\n\tby = 0;\n\tvx = toward * (20 + next() * 4);\n\tvy = (next() - 0.5) * 16;\n\twait = 0.8;\n\trallies = 0;\n};\n\nlet iterations = 0;\n\nwhile (bank >= STEP && iterations < 20) {\n\nbank -= STEP;\nticks += 1;\niterations += 1;\n\nif (on('KeyW')) ly += reach;\nif (on('KeyS')) ly -= reach;\nif (on('ArrowUp')) ry += reach;\nif (on('ArrowDown')) ry -= reach;\n\nly = Math.max(-limit, Math.min(limit, ly));\nry = Math.max(-limit, Math.min(limit, ry));\n\nif (wait > 0) {\n\n\twait = Math.max(0, wait - STEP);\n\tbx = 0;\n\tby = 0;\n\n} else if (g.started) {\n\n\tbx += vx * STEP;\n\tby += vy * STEP;\n\n\t// The rails\n\tif (by > HALF - R) { by = HALF - R; vy = -Math.abs(vy); }\n\tif (by < -HALF + R) { by = -HALF + R; vy = Math.abs(vy); }\n\n\t// The paddles. Where the ball meets a paddle decides how it leaves, which\n\t// is the whole of the game's control.\n\tif (vx < 0 && bx - R <= -FACE + 0.5 && bx > -FACE - 2 && Math.abs(by - ly) <= PAD + R) {\n\t\tbx = -FACE + 0.5 + R;\n\t\tvx = Math.abs(vx) * 1.05;\n\t\tvy += (by - ly) * 4;\n\t\trallies += 1;\n\t}\n\n\tif (vx > 0 && bx + R >= FACE - 0.5 && bx < FACE + 2 && Math.abs(by - ry) <= PAD + R) {\n\t\tbx = FACE - 0.5 - R;\n\t\tvx = -Math.abs(vx) * 1.05;\n\t\tvy += (by - ry) * 4;\n\t\trallies += 1;\n\t}\n\n\t// Never so fast that a frame steps straight past a paddle.\n\tconst capped = Math.min(Math.abs(vx), 60);\n\tvx = vx < 0 ? -capped : capped;\n\tvy = Math.max(-40, Math.min(40, vy));\n\n\tif (bx < -OUT) { scored[1] += 1; serve(1); }\n\tif (bx > OUT) { scored[0] += 1; serve(-1); }\n}\n\n}\n\nconst digits = n => String(n);\n\nconst patch = { packages: {\n\tgame: { properties: { meta: { data: {\n\t\tleft: ly,\n\t\tright: ry,\n\t\tball: [bx, by],\n\t\tspeed: [vx, vy],\n\t\tscore: scored,\n\t\twait: wait,\n\t\tseed: seed,\n\t\trallies: rallies,\n\t\tbank: bank,\n\t\tticks: ticks,\n\t\tstarted: g.started\n\t} } } },\n\tleft: { properties: { meta: { data: { position: [-FACE, ly, 0] } } } },\n\tright: { properties: { meta: { data: { position: [FACE, ry, 0] } } } },\n\tball: { properties: { meta: { data: { position: [bx, by, 0] } } } }\n} };\n\nif (s.packages.score.packages.left.utilities.label.content !== digits(scored[0])) {\n\tpatch.packages.score = { packages: {\n\t\tleft: { utilities: { label: { content: digits(scored[0]) } } },\n\t\tright: { utilities: { label: { content: digits(scored[1]) } } }\n\t} };\n}\n\nif (s.packages.score.packages.right.utilities.label.content !== digits(scored[1])) {\n\tpatch.packages.score = patch.packages.score || { packages: {} };\n\tpatch.packages.score.packages = patch.packages.score.packages || {};\n\tpatch.packages.score.packages.right = {\n\t\tutilities: { label: { content: digits(scored[1]) } }\n\t};\n}\n\nreturn JSON.stringify(patch);"
+				}
+			}
+		}
+	}
+}
