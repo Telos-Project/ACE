@@ -691,34 +691,21 @@
 
 						/*
 
-							Contacts are made stiffer than the default. A body
-							driven under its own power pushes into whatever it
-							meets on every step, and a soft contact lets it sink
-							a little further each time until it has passed
-							through. Repeated impact — anything that jumps
-							against a wall — reaches that state fastest.
+							Solver iterations are raised, which costs a little
+							and settles contacts more thoroughly. Contact
+							stiffness is left alone: winding it up does not stop
+							a driven body pushing through anything, and a very
+							stiff contact makes a resting body chatter.
 
 						*/
 						let world = scene.getPhysicsEngine()
 							?.getPhysicsPlugin()?.world;
 
-						if(world != null && world.defaultContactMaterial != null) {
+						if(world?.solver != null) {
 
-							world.defaultContactMaterial
-								.contactEquationStiffness = 1e9;
-
-							world.defaultContactMaterial
-								.contactEquationRelaxation = 2;
-
-							if(world.solver != null) {
-
-								world.solver.iterations = Math.max(
-									10,
-									data.substeps != null ? data.substeps : 10
-								);
-
-								world.solver.tolerance = 0.0005;
-							}
+							world.solver.iterations = Math.max(
+								10, data.substeps != null ? data.substeps : 10
+							);
 						}
 
 						physics = true;
