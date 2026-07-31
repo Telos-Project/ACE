@@ -12,14 +12,22 @@
 							"telos-ace"
 						],
 						"data": {
-							"gravity": null,
+							"gravity": [
+								0,
+								-26,
+								0
+							],
 							"background": "#141821",
 							"ambient": [
 								0.05,
 								0.06,
 								0.09
 							],
-							"horizon": 900
+							"step": 0.008333333333333333,
+							"substeps": 8,
+							"requires": [
+								"physics"
+							]
 						}
 					}
 				}
@@ -83,7 +91,7 @@
 					"data": {
 						"position": [
 							0,
-							0,
+							-0.5,
 							0
 						]
 					},
@@ -100,13 +108,12 @@
 							"telos-ace"
 						],
 						"data": {
-							"shape": "ground",
+							"shape": "box",
 							"size": [
 								120,
-								0,
+								1,
 								120
 							],
-							"segments": 1,
 							"shadow": {
 								"cast": false,
 								"receive": true
@@ -125,6 +132,18 @@
 							"roughness": 0.95
 						}
 					}
+				},
+				"collider": {
+					"properties": {
+						"tags": [
+							"collider",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "auto",
+							"friction": 0.4
+						}
+					}
 				}
 			}
 		},
@@ -133,6 +152,354 @@
 				"meta": {}
 			},
 			"packages": {
+				"deck": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									2.8,
+									0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										14,
+										0.4,
+										5
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#69707b",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
+								}
+							}
+						}
+					}
+				},
+				"footingL": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-6.5,
+									1.3,
+									0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1,
+										2.6,
+										5
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5b626c",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
+								}
+							}
+						}
+					}
+				},
+				"footingR": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									6.5,
+									1.3,
+									0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1,
+										2.6,
+										5
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#5b626c",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
+								}
+							}
+						}
+					}
+				},
+				"stepA": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									9.5,
+									0.4,
+									5
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										3.4,
+										0.8,
+										3.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#767d88",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
+								}
+							}
+						}
+					}
+				},
+				"stepB": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									9.5,
+									1.1,
+									1.4
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										3.4,
+										2.2,
+										3.4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7681",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
+								}
+							}
+						}
+					}
+				},
+				"ledge": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-12,
+									0.6,
+									12.5
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										4,
+										1.2,
+										4
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7681",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
+								}
+							}
+						}
+					}
+				},
 				"hurdle0": {
 					"properties": {
 						"meta": {
@@ -140,12 +507,11 @@
 								"position": [
 									-6,
 									0.45,
-									-10.0
+									-9
 								]
 							},
 							"tags": [
-								"ground",
-								"solid"
+								"ground"
 							]
 						}
 					},
@@ -173,8 +539,20 @@
 									"telos-ace"
 								],
 								"data": {
-									"color": "#7d8590",
-									"roughness": 0.85
+									"color": "#818893",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
 								}
 							}
 						}
@@ -187,12 +565,11 @@
 								"position": [
 									-2,
 									0.45,
-									-10.0
+									-9
 								]
 							},
 							"tags": [
-								"ground",
-								"solid"
+								"ground"
 							]
 						}
 					},
@@ -220,8 +597,20 @@
 									"telos-ace"
 								],
 								"data": {
-									"color": "#7d8590",
-									"roughness": 0.85
+									"color": "#818893",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
 								}
 							}
 						}
@@ -234,12 +623,11 @@
 								"position": [
 									2,
 									0.45,
-									-10.0
+									-9
 								]
 							},
 							"tags": [
-								"ground",
-								"solid"
+								"ground"
 							]
 						}
 					},
@@ -267,8 +655,20 @@
 									"telos-ace"
 								],
 								"data": {
-									"color": "#7d8590",
-									"roughness": 0.85
+									"color": "#818893",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
 								}
 							}
 						}
@@ -281,12 +681,11 @@
 								"position": [
 									6,
 									0.45,
-									-10.0
+									-9
 								]
 							},
 							"tags": [
-								"ground",
-								"solid"
+								"ground"
 							]
 						}
 					},
@@ -314,243 +713,20 @@
 									"telos-ace"
 								],
 								"data": {
-									"color": "#7d8590",
-									"roughness": 0.85
-								}
-							}
-						}
-					}
-				},
-				"step0": {
-					"properties": {
-						"meta": {
-							"data": {
-								"position": [
-									14,
-									0.25,
-									-4.0
-								]
-							},
-							"tags": [
-								"ground",
-								"solid"
-							]
-						}
-					},
-					"utilities": {
-						"mesh": {
-							"properties": {
-								"tags": [
-									"mesh",
-									"telos-ace"
-								],
-								"data": {
-									"shape": "box",
-									"size": [
-										5,
-										0.5,
-										2.4
-									]
+									"color": "#818893",
+									"roughness": 0.9
 								}
 							}
 						},
-						"surface": {
+						"collider": {
 							"properties": {
 								"tags": [
-									"material",
+									"collider",
 									"telos-ace"
 								],
 								"data": {
-									"color": "#6f7680",
-									"roughness": 0.85
-								}
-							}
-						}
-					}
-				},
-				"step1": {
-					"properties": {
-						"meta": {
-							"data": {
-								"position": [
-									14,
-									0.9,
-									-1.4
-								]
-							},
-							"tags": [
-								"ground",
-								"solid"
-							]
-						}
-					},
-					"utilities": {
-						"mesh": {
-							"properties": {
-								"tags": [
-									"mesh",
-									"telos-ace"
-								],
-								"data": {
-									"shape": "box",
-									"size": [
-										5,
-										1.8,
-										2.4
-									]
-								}
-							}
-						},
-						"surface": {
-							"properties": {
-								"tags": [
-									"material",
-									"telos-ace"
-								],
-								"data": {
-									"color": "#6f7680",
-									"roughness": 0.85
-								}
-							}
-						}
-					}
-				},
-				"step2": {
-					"properties": {
-						"meta": {
-							"data": {
-								"position": [
-									14,
-									1.55,
-									1.2000000000000002
-								]
-							},
-							"tags": [
-								"ground",
-								"solid"
-							]
-						}
-					},
-					"utilities": {
-						"mesh": {
-							"properties": {
-								"tags": [
-									"mesh",
-									"telos-ace"
-								],
-								"data": {
-									"shape": "box",
-									"size": [
-										5,
-										3.1,
-										2.4
-									]
-								}
-							}
-						},
-						"surface": {
-							"properties": {
-								"tags": [
-									"material",
-									"telos-ace"
-								],
-								"data": {
-									"color": "#6f7680",
-									"roughness": 0.85
-								}
-							}
-						}
-					}
-				},
-				"step3": {
-					"properties": {
-						"meta": {
-							"data": {
-								"position": [
-									14,
-									2.8000000000000003,
-									3.8000000000000007
-								]
-							},
-							"tags": [
-								"ground",
-								"solid"
-							]
-						}
-					},
-					"utilities": {
-						"mesh": {
-							"properties": {
-								"tags": [
-									"mesh",
-									"telos-ace"
-								],
-								"data": {
-									"shape": "box",
-									"size": [
-										5,
-										5.6000000000000005,
-										2.4
-									]
-								}
-							}
-						},
-						"surface": {
-							"properties": {
-								"tags": [
-									"material",
-									"telos-ace"
-								],
-								"data": {
-									"color": "#6f7680",
-									"roughness": 0.85
-								}
-							}
-						}
-					}
-				},
-				"platform": {
-					"properties": {
-						"meta": {
-							"data": {
-								"position": [
-									14,
-									3.6,
-									8
-								]
-							},
-							"tags": [
-								"ground",
-								"solid"
-							]
-						}
-					},
-					"utilities": {
-						"mesh": {
-							"properties": {
-								"tags": [
-									"mesh",
-									"telos-ace"
-								],
-								"data": {
-									"shape": "box",
-									"size": [
-										8,
-										0.8,
-										8
-									]
-								}
-							}
-						},
-						"surface": {
-							"properties": {
-								"tags": [
-									"material",
-									"telos-ace"
-								],
-								"data": {
-									"color": "#5f6670",
-									"roughness": 0.85
+									"shape": "auto",
+									"friction": 0.4
 								}
 							}
 						}
@@ -561,14 +737,13 @@
 						"meta": {
 							"data": {
 								"position": [
-									-14,
+									-16,
 									2.6,
-									4
+									-2
 								]
 							},
 							"tags": [
-								"ground",
-								"solid"
+								"ground"
 							]
 						}
 					},
@@ -597,7 +772,19 @@
 								],
 								"data": {
 									"color": "#4d535c",
-									"roughness": 0.85
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
 								}
 							}
 						}
@@ -608,14 +795,13 @@
 						"meta": {
 							"data": {
 								"position": [
-									-9,
+									-13,
 									2.6,
-									10
+									3
 								]
 							},
 							"tags": [
-								"ground",
-								"solid"
+								"ground"
 							]
 						}
 					},
@@ -644,101 +830,19 @@
 								],
 								"data": {
 									"color": "#4d535c",
-									"roughness": 0.85
-								}
-							}
-						}
-					}
-				},
-				"pillar2": {
-					"properties": {
-						"meta": {
-							"data": {
-								"position": [
-									-16,
-									2.6,
-									12
-								]
-							},
-							"tags": [
-								"ground",
-								"solid"
-							]
-						}
-					},
-					"utilities": {
-						"mesh": {
-							"properties": {
-								"tags": [
-									"mesh",
-									"telos-ace"
-								],
-								"data": {
-									"shape": "box",
-									"size": [
-										1.8,
-										5.2,
-										1.8
-									]
+									"roughness": 0.9
 								}
 							}
 						},
-						"surface": {
+						"collider": {
 							"properties": {
 								"tags": [
-									"material",
+									"collider",
 									"telos-ace"
 								],
 								"data": {
-									"color": "#4d535c",
-									"roughness": 0.85
-								}
-							}
-						}
-					}
-				},
-				"pillar3": {
-					"properties": {
-						"meta": {
-							"data": {
-								"position": [
-									-4,
-									2.6,
-									16
-								]
-							},
-							"tags": [
-								"ground",
-								"solid"
-							]
-						}
-					},
-					"utilities": {
-						"mesh": {
-							"properties": {
-								"tags": [
-									"mesh",
-									"telos-ace"
-								],
-								"data": {
-									"shape": "box",
-									"size": [
-										1.8,
-										5.2,
-										1.8
-									]
-								}
-							}
-						},
-						"surface": {
-							"properties": {
-								"tags": [
-									"material",
-									"telos-ace"
-								],
-								"data": {
-									"color": "#4d535c",
-									"roughness": 0.85
+									"shape": "auto",
+									"friction": 0.4
 								}
 							}
 						}
@@ -749,14 +853,13 @@
 						"meta": {
 							"data": {
 								"position": [
-									4,
+									14,
 									1.4,
-									14
+									-8
 								]
 							},
 							"tags": [
-								"ground",
-								"solid"
+								"ground"
 							]
 						}
 					},
@@ -770,7 +873,7 @@
 								"data": {
 									"shape": "box",
 									"size": [
-										16,
+										12,
 										2.8,
 										1.2
 									]
@@ -785,7 +888,77 @@
 								],
 								"data": {
 									"color": "#565c66",
-									"roughness": 0.85
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
+								}
+							}
+						}
+					}
+				},
+				"ledgeA": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-12,
+									0.35,
+									8
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										4,
+										0.7,
+										3.5
+									]
+								}
+							}
+						},
+						"surface": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7681",
+									"roughness": 0.9
+								}
+							}
+						},
+						"collider": {
+							"properties": {
+								"tags": [
+									"collider",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "auto",
+									"friction": 0.4
 								}
 							}
 						}
@@ -799,8 +972,8 @@
 					"data": {
 						"position": [
 							0,
-							0,
-							6
+							0.85,
+							14
 						],
 						"rotation": [
 							0,
@@ -808,19 +981,59 @@
 							0
 						],
 						"facing": 0,
-						"vy": 0,
+						"half": 0.85,
 						"grounded": 1,
-						"radius": 0.45,
 						"clip": "Idle",
 						"speed": 0,
-						"grade": 0,
-						"distance": 0,
 						"jumps": 0,
-						"step": 0.55
+						"airborne": 0,
+						"bar": 0
 					}
 				}
 			},
 			"utilities": {
+				"collider": {
+					"properties": {
+						"tags": [
+							"collider",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "cylinder",
+							"size": [
+								0.8,
+								1.7,
+								0.8
+							],
+							"friction": 0
+						}
+					}
+				},
+				"body": {
+					"properties": {
+						"tags": [
+							"body",
+							"telos-ace"
+						],
+						"data": {
+							"mode": "dynamic",
+							"mass": 70,
+							"sleep": false,
+							"freeze": {
+								"rotation": [
+									true,
+									true,
+									true
+								]
+							},
+							"velocity": [
+								0,
+								0,
+								0
+							]
+						}
+					}
+				},
 				"ground": {
 					"properties": {
 						"tags": [
@@ -829,11 +1042,6 @@
 						],
 						"data": {
 							"type": "ray",
-							"offset": [
-								0,
-								40,
-								0
-							],
 							"direction": [
 								0,
 								-1,
@@ -841,35 +1049,10 @@
 							],
 							"distance": 200,
 							"continuous": true,
-							"limit": 0,
+							"limit": 1,
 							"tags": [
 								"ground"
 							]
-						}
-					}
-				},
-				"bump": {
-					"properties": {
-						"tags": [
-							"query",
-							"telos-ace"
-						],
-						"data": {
-							"type": "overlap",
-							"offset": [
-								0,
-								1.0,
-								0
-							],
-							"shape": {
-								"shape": "sphere",
-								"size": 0.45
-							},
-							"tags": [
-								"solid"
-							],
-							"limit": 0,
-							"continuous": true
 						}
 					}
 				},
@@ -885,17 +1068,17 @@
 							"order": 0
 						}
 					},
-					"content": "const s = JSON.parse(state);\nconst E = s.packages.engine;\nconst time = E.utilities.time.properties.state;\nconst kb = E.packages.controllers.utilities['keyboard-0'];\nconst pt = E.packages.controllers.utilities['pointer-0'];\n\nconst me = s.packages.avatar;\nconst d = me.properties.meta.data;\nconst rig = s.packages.rig.properties.meta.data;\nconst dt = Math.min(time.delta, 0.1);\nconst radius = d.radius || 0.45;\n\nconst keys = kb ? kb.properties.state.digital : [];\nconst on = k => keys.indexOf(k) >= 0;\n\n// The camera is what \"forward\" means in a third person view, so it is turned\n// first and the avatar is steered relative to where it ended up.\nlet yaw = rig.yaw || 0;\nlet pitch = rig.pitch != null ? rig.pitch : -0.28;\n\nif (pt) {\n\tconst a = pt.properties.state.analog;\n\tyaw -= (a.dx || 0) * 3.2;\n\tpitch += (a.dy || 0) * 3.2;\n\t// Negative pitch swings the eye up and behind, which is where a third\n\t// person view wants to sit; positive brings it down to look up.\n\tpitch = Math.max(-1.0, Math.min(0.30, pitch));\n}\n\nconst forward = (on('KeyW') || on('ArrowUp') ? 1 : 0) - (on('KeyS') || on('ArrowDown') ? 1 : 0);\nconst strafe = (on('KeyD') || on('ArrowRight') ? 1 : 0) - (on('KeyA') || on('ArrowLeft') ? 1 : 0);\n\nconst sy = Math.sin(yaw), cy = Math.cos(yaw);\nlet mx = -sy * forward + cy * strafe;\nlet mz = -cy * forward - sy * strafe;\n\nconst push = Math.hypot(mx, mz);\nconst drive = Math.min(1, push);\n\nif (push > 1e-6) { mx /= push; mz /= push; }\n\n// Backing up is the one time a figure should not point where it is going,\n// and it is also the one time the backward clip suits it. The same condition\n// decides both.\nconst backing = forward < 0 && Math.abs(forward) >= Math.abs(strafe);\n\nconst running = on('ShiftLeft') || on('ShiftRight');\nconst rate = running ? 8.4 : 3.4;\n\nconst probe = me.utilities.ground.properties.state;\nconst hits = probe ? probe.hits : null;\n\n// The probe looks down from well overhead, so its answers arrive highest\n// first. Taking the first of them puts the avatar on the roof of anything she\n// walks beneath. What is underfoot is the highest surface that is not above\n// what she could step onto, and while she is in the air nothing above her\n// counts at all, or jumping under a platform would hoist her onto it at the\n// top of the arc.\nconst reach = d.grounded ? (d.step || 0.9) : 0.05;\n\nlet surface = null;\n\nif (hits) {\n\tfor (const hit of hits) {\n\t\tif (hit.point[1] <= d.position[1] + reach) { surface = hit; break; }\n\t}\n}\n\n// Slope normalisation, as on foot elsewhere: a climb costs ground covered\n// rather than adding to the speed.\nlet grade = 0;\n\nif (surface && surface.normal && Math.abs(surface.normal[1]) > 1e-3) {\n\tconst n = surface.normal;\n\tgrade = -(mx * n[0] + mz * n[2]) / n[1];\n}\n\n// The overlap that stops a body is a frame behind it, so a step larger than\n// the body cannot be caught before it has passed through something thin.\n// Capping the step against the radius bounds that, and only ever bites at a\n// frame rate far below playable.\nconst step = Math.min(\n\trate * drive * dt / Math.sqrt(1 + grade * grade),\n\tradius * 0.7\n);\n\nlet px = d.position[0] + mx * step;\nlet pz = d.position[2] + mz * step;\n\n// Anything solid is pushed out of horizontally, so running into a pillar\n// stops the avatar rather than lifting them onto it.\nconst bump = me.utilities.bump.properties.state;\n\nif (bump && bump.hits) {\n\tfor (const hit of bump.hits) {\n\n\t\tconst depth = radius - hit.distance;\n\t\tif (depth <= 0) continue;\n\n\t\tlet nx = hit.normal[0];\n\t\tlet nz = hit.normal[2];\n\n\t\t// A negative distance means the body is already inside. Following the\n\t\t// nearest face out of a thin obstacle can eject it through the far\n\t\t// side, so it retreats the way it came in instead, which is known here\n\t\t// and not to the engine.\n\t\tif (hit.distance < 0 && (mx !== 0 || mz !== 0)) {\n\t\t\tnx = -mx;\n\t\t\tnz = -mz;\n\t\t}\n\n\t\tconst flat = Math.hypot(nx, nz);\n\t\tif (flat < 1e-4) continue;\n\n\t\tpx += (nx / flat) * depth;\n\t\tpz += (nz / flat) * depth;\n\t}\n}\n\nconst edge = 44;\npx = Math.max(-edge, Math.min(edge, px));\npz = Math.max(-edge, Math.min(edge, pz));\n\n// Falling and landing. The probe reports whatever is directly underneath,\n// which is the top of a block when there is one, so the same arithmetic\n// lands on the ground and on the course.\nconst floor = surface ? surface.point[1] : d.position[1];\n\nlet py = d.position[1];\nlet vy = d.vy || 0;\nlet grounded = d.grounded ? 1 : 0;\nlet jumped = 0;\n\nif (grounded && on('Space')) {\n\tvy = 9.4;\n\tgrounded = 0;\n\tjumped = 1;\n}\n\nvy -= 26 * dt;\npy += vy * dt;\n\nif (vy <= 0 && py <= floor) {\n\tpy = floor;\n\tvy = 0;\n\tgrounded = 1;\n} else if (py > floor + 0.02) {\n\tgrounded = 0;\n}\n\n// Nothing here belongs below the course; a bad frame should not be permanent.\nif (py < -60) { py = floor; vy = 0; }\n\n// The avatar turns to face the way it is going, rather than snapping.\nlet facing = d.facing || 0;\n\nif (drive > 0.01) {\n\tconst ax = backing ? -mx : mx;\n\tconst az = backing ? -mz : mz;\n\tconst want = Math.atan2(-ax, -az);\n\tlet turn = ((want - facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;\n\tfacing += turn * Math.min(1, 14 * dt);\n}\n\n// Which clip suits what the avatar is doing. The model has no jump, so it\n// holds its idle pose in the air.\nlet clip = 'Idle';\nlet ratio = 1;\n\nif (!grounded) {\n\tclip = 'Idle';\n} else if (drive > 0.05) {\n\tif (backing) {\n\t\tclip = 'WalkingBack';\n\t\tratio = 1.1;\n\t} else {\n\t\tclip = 'Walking';\n\t\tratio = running ? 1.9 : 1.05;\n\t}\n}\n\n// The camera rig chases the avatar rather than being welded to it, which\n// keeps a landing from jolting the view.\nconst chase = Math.min(1, 12 * dt);\nconst rx = (rig.position ? rig.position[0] : px) + (px - (rig.position ? rig.position[0] : px)) * chase;\nconst ry = (rig.position ? rig.position[1] : py) + (py - (rig.position ? rig.position[1] : py)) * chase;\nconst rz = (rig.position ? rig.position[2] : pz) + (pz - (rig.position ? rig.position[2] : pz)) * chase;\n\nconst moved = Math.hypot(px - d.position[0], pz - d.position[2]);\n\nconst patch = { packages: {\n\tavatar: { properties: { meta: { data: {\n\t\tposition: [px, py, pz],\n\t\trotation: [0, facing, 0],\n\t\tfacing: facing,\n\t\tvy: vy,\n\t\tgrounded: grounded,\n\t\tclip: clip,\n\t\tgrade: grade,\n\t\tspeed: dt > 0 ? moved / dt : 0,\n\t\tdistance: (d.distance || 0) + moved\n\t} } } },\n\trig: { properties: { meta: { data: {\n\t\tposition: [rx, ry, rz],\n\t\trotation: [0, yaw, 0],\n\t\tyaw: yaw,\n\t\tpitch: pitch\n\t} } }, packages: { arm: { properties: { meta: { data: {\n\t\trotation: [pitch, 0, 0]\n\t} } } } } }\n} };\n\n// A clip is only restarted when it actually changes.\nif (d.clip !== clip) {\n\tpatch.packages.avatar.packages = { body: { utilities: { motion: {\n\t\tproperties: { data: { clip: clip, speed: ratio, play: true } }\n\t} } } };\n} else {\n\tpatch.packages.avatar.packages = { body: { utilities: { motion: {\n\t\tproperties: { data: { speed: ratio } }\n\t} } } };\n}\n\nif (jumped) {\n\tpatch.packages.avatar.properties.meta.data.jumps = (d.jumps || 0) + 1;\n}\n\nreturn JSON.stringify(patch);"
+					"content": "const s = JSON.parse(state);\nconst E = s.packages.engine;\nconst time = E.utilities.time.properties.state;\nconst kb = E.packages.controllers.utilities['keyboard-0'];\nconst pt = E.packages.controllers.utilities['pointer-0'];\n\nconst me = s.packages.avatar;\nconst d = me.properties.meta.data;\nconst rig = s.packages.rig.properties.meta.data;\nconst dt = Math.min(time.delta, 0.1);\n\n// The simulation owns where the avatar is. The document reads that and asks\n// for a velocity; it never writes a position, which on a simulated body would\n// be a teleport and would fight the solver every frame.\nconst at = (me.properties.meta.state && me.properties.meta.state.position)\n\t|| d.position || [0, 0, 0];\n\nconst sim = me.utilities.body.properties.state || {};\nconst vel = sim.velocity || [0, 0, 0];\n\nconst half = d.half || 0.85;\n\nconst keys = kb ? kb.properties.state.digital : [];\nconst on = k => keys.indexOf(k) >= 0;\n\n// The camera is what forward means in a third person view, so it is turned\n// first and the avatar steered relative to where it ended up.\nlet yaw = rig.yaw || 0;\nlet pitch = rig.pitch != null ? rig.pitch : -0.28;\n\nif (pt) {\n\tconst a = pt.properties.state.analog;\n\tyaw -= (a.dx || 0) * 3.2;\n\tpitch += (a.dy || 0) * 3.2;\n\tpitch = Math.max(-1.0, Math.min(0.30, pitch));\n}\n\nconst forward = (on('KeyW') || on('ArrowUp') ? 1 : 0) - (on('KeyS') || on('ArrowDown') ? 1 : 0);\nconst strafe = (on('KeyD') || on('ArrowRight') ? 1 : 0) - (on('KeyA') || on('ArrowLeft') ? 1 : 0);\n\nconst sy = Math.sin(yaw), cy = Math.cos(yaw);\nlet mx = -sy * forward + cy * strafe;\nlet mz = -cy * forward - sy * strafe;\n\nconst push = Math.hypot(mx, mz);\nconst drive = Math.min(1, push);\n\nif (push > 1e-6) { mx /= push; mz /= push; }\n\n// Backing up is the one time a figure should not point where it is going,\n// and it is also the one time the backward clip suits it.\nconst backing = forward < 0 && Math.abs(forward) >= Math.abs(strafe);\nconst running = on('ShiftLeft') || on('ShiftRight');\nconst rate = running ? 8.4 : 3.4;\n\n// The probe casts down from the middle of the body, so it answers with what\n// is under the feet and never with what is over the head. Standing is a\n// matter of being close to that and not rising.\nconst probe = me.utilities.ground.properties.state;\nconst hits = probe ? probe.hits : null;\nconst floor = hits && hits.length ? hits[0].point[1] : null;\n\nconst clearance = floor != null ? (at[1] - half) - floor : 99;\nconst grounded = clearance < 0.22 && vel[1] < 1.5;\n\n// Falling is never taken back from the solver: the vertical is asked for only\n// on the frame a jump begins, and left alone on every other.\nlet vy = null;\nlet jumped = 0;\n\n// The velocity read here was taken before the last jump reached the solver,\n// so for a frame or two after leaving the ground the avatar still looks as\n// though she is standing on it. A short bar after each jump is what stops a\n// held key from launching her repeatedly.\nlet bar = Math.max(0, (d.bar || 0) - dt);\n\nif (grounded && bar === 0 && on('Space')) {\n\tvy = 9.4;\n\tjumped = 1;\n\tbar = 0.25;\n}\n\n// Falling is the solver's business, and so is everything the avatar runs\n// into. All the document decides is how fast it is trying to go.\n//\n// It steers toward that rather than setting it outright. A velocity written\n// over the top of the solver's own answer every frame discards the response\n// it just computed, and a body held against a wall grinds through it a\n// fraction at a time. Restoring only part of the difference each step leaves\n// the contact enough authority to hold.\nconst urge = Math.min(1, (grounded ? 18 : 7) * dt);\n\n// Steering in the air is weaker than on the ground, as it is in most things\n// that jump. It also keeps a body from re-entering a wall at full speed on\n// every bounce, which is how a soft contact is eventually pushed through.\nconst control = grounded ? 1 : 0.16;\n\nconst wanted = [\n\tvel[0] + (mx * rate * drive * control - vel[0]) * urge,\n\tvy,\n\tvel[2] + (mz * rate * drive * control - vel[2]) * urge\n];\n\n// A null asks the simulation to keep what it has.\nif (vy === null) wanted[1] = null;\n\nconst moving = Math.hypot(vel[0], vel[2]);\n\nlet facing = d.facing || 0;\n\nif (drive > 0.01) {\n\tconst ax = backing ? -mx : mx;\n\tconst az = backing ? -mz : mz;\n\tconst want = Math.atan2(-ax, -az);\n\tlet turn = ((want - facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;\n\tfacing += turn * Math.min(1, 14 * dt);\n}\n\nlet clip = 'Idle';\nlet ratio = 1;\n\nif (!grounded) {\n\tclip = 'Idle';\n} else if (drive > 0.05) {\n\tif (backing) {\n\t\tclip = 'WalkingBack';\n\t\tratio = 1.1;\n\t} else {\n\t\tclip = 'Walking';\n\t\tratio = running ? 1.9 : 1.05;\n\t}\n}\n\n// The camera chases rather than being welded on, so a landing does not jolt\n// the view.\nconst chase = Math.min(1, 12 * dt);\nconst was = rig.position || at;\nconst rx = was[0] + (at[0] - was[0]) * chase;\nconst ry = was[1] + (at[1] - was[1]) * chase;\nconst rz = was[2] + (at[2] - was[2]) * chase;\n\nconst patch = { packages: {\n\tavatar: {\n\t\tproperties: { meta: { data: {\n\t\t\tfacing: facing,\n\t\t\tgrounded: grounded ? 1 : 0,\n\t\t\tbar: bar,\n\t\t\tclip: clip,\n\t\t\tspeed: moving,\n\t\t\tairborne: grounded ? 0 : 1\n\t\t} } },\n\t\tutilities: { body: { properties: { data: { velocity: wanted } } } }\n\t},\n\trig: {\n\t\tproperties: { meta: { data: {\n\t\t\tposition: [rx, ry, rz],\n\t\t\trotation: [0, yaw, 0],\n\t\t\tyaw: yaw,\n\t\t\tpitch: pitch\n\t\t} } },\n\t\tpackages: { arm: { properties: { meta: { data: {\n\t\t\trotation: [pitch, 0, 0]\n\t\t} } } } }\n\t}\n} };\n\n// The facing turns the model, not the body. Writing a rotation onto a\n// simulated entity is a teleport, and doing it every frame overwrites the\n// solver's own transform before every step.\npatch.packages.avatar.packages = { figure: {\n\tproperties: { meta: { data: { rotation: [0, facing + Math.PI, 0] } } },\n\tutilities: { motion: {\n\t\tproperties: { data: d.clip !== clip ?\n\t\t\t{ clip: clip, speed: ratio, play: true } : { speed: ratio } }\n\t} }\n} };\n\nif (jumped) {\n\tpatch.packages.avatar.properties.meta.data.jumps = (d.jumps || 0) + 1;\n}\n\nreturn JSON.stringify(patch);"
 				}
 			},
 			"packages": {
-				"body": {
+				"figure": {
 					"properties": {
 						"meta": {
 							"data": {
 								"position": [
 									0,
-									0,
+									-0.85,
 									0
 								],
 								"scale": 0.1,
@@ -950,8 +1133,8 @@
 					"data": {
 						"position": [
 							0,
-							0,
-							6
+							0.85,
+							14
 						],
 						"rotation": [
 							0,
@@ -970,7 +1153,7 @@
 							"data": {
 								"position": [
 									0,
-									1.55,
+									1.0,
 									0
 								],
 								"rotation": [
@@ -1081,7 +1264,7 @@
 							"order": 20
 						}
 					},
-					"content": "const s = JSON.parse(state);\nconst t = s.packages.engine.utilities.time.properties.state;\nif (t.frame % 20 !== 0) return;\nconst d = s.packages.avatar.properties.meta.data;\nconst m = s.packages.avatar.packages.body.utilities.mesh.properties.state;\nconst line = (m && m.loaded ? d.clip : 'loading avatar') +\n\t'   ' + (d.speed || 0).toFixed(1) + 'm/s' +\n\t'   ' + Math.round(d.distance || 0) + 'm' +\n\t'   jumps ' + (d.jumps || 0) +\n\t(d.grounded ? '' : '   airborne');\nif (s.packages.hud.utilities.readout.content === line) return;\nreturn JSON.stringify({ packages: { hud: { utilities: { readout: { content: line } } } } });"
+					"content": "const s = JSON.parse(state);\nconst t = s.packages.engine.utilities.time.properties.state;\nif (t.frame % 20 !== 0) return;\nconst d = s.packages.avatar.properties.meta.data;\nconst m = s.packages.avatar.packages.figure.utilities.mesh.properties.state;\nconst line = (m && m.loaded ? d.clip : 'loading avatar') +\n\t'   ' + (d.speed || 0).toFixed(1) + 'm/s' +\n\t'   jumps ' + (d.jumps || 0) +\n\t(d.airborne ? '   airborne' : '');\nif (s.packages.hud.utilities.readout.content === line) return;\nreturn JSON.stringify({ packages: { hud: { utilities: { readout: { content: line } } } } });"
 				}
 			}
 		}

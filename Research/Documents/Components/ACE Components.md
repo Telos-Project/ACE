@@ -426,16 +426,27 @@ body but no collider is simulated as a point mass.
 |---|---|---|---|
 | mode | string | "dynamic" | "dynamic", "kinematic", "static" |
 | mass | number | 1 | Ignored for static and kinematic |
-| velocity | vec3 | [0,0,0] | Linear velocity; writing sets it directly |
-| angular | vec3 | [0,0,0] | Angular velocity |
+| velocity | vec3 | — | Linear velocity. A component given as null is left to the simulation |
+| angular | vec3 | — | Angular velocity, on the same terms |
 | damping | number | 0 | |
 | angularDamping | number | 0 | |
 | gravity | number | 1 | Per-body gravity scale |
-| freeze | object | — | `{ position: [bool,bool,bool], rotation: [bool,bool,bool] }` |
+| freeze | object | — | `{ position: [bool,bool,bool], rotation: [bool,bool,bool] }`. Anything standing taller than it is wide topples on the first edge it meets without this |
 | sleep | boolean | true | Whether the body may be deactivated when at rest |
 | impulse | vec3 | — | *Consumable.* Instantaneous impulse at the center of mass |
 | torque | vec3 | — | *Consumable.* Instantaneous angular impulse |
 | teleport | object | — | *Consumable.* `{ position, rotation }`, clears velocity |
+
+Velocity is a standing instruction rather than a one-off. Adapters shall apply it on every frame it
+is present, since a value set once is taken back by friction and by every contact, and a document
+driving a body under its own power would come to a halt and never move again. They shall apply it
+**after** reading the state below, or a document is handed back its own request in place of what the
+simulation produced: gravity is then never visible in it, and a body told once to rise rises for
+ever.
+
+A document should not take back an axis it does not mean to control. Reading the vertical out and
+handing it in again puts a value that is always a frame old into the value it came from, and the two
+settle into an oscillation rather than a fall. Null is how an axis is left alone.
 
 **state**
 

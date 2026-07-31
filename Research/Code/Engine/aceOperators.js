@@ -689,6 +689,38 @@
 						*/
 						scene.physicsEnabled = false;
 
+						/*
+
+							Contacts are made stiffer than the default. A body
+							driven under its own power pushes into whatever it
+							meets on every step, and a soft contact lets it sink
+							a little further each time until it has passed
+							through. Repeated impact — anything that jumps
+							against a wall — reaches that state fastest.
+
+						*/
+						let world = scene.getPhysicsEngine()
+							?.getPhysicsPlugin()?.world;
+
+						if(world != null && world.defaultContactMaterial != null) {
+
+							world.defaultContactMaterial
+								.contactEquationStiffness = 1e9;
+
+							world.defaultContactMaterial
+								.contactEquationRelaxation = 2;
+
+							if(world.solver != null) {
+
+								world.solver.iterations = Math.max(
+									10,
+									data.substeps != null ? data.substeps : 10
+								);
+
+								world.solver.tolerance = 0.0005;
+							}
+						}
+
 						physics = true;
 
 					} catch(error) {
@@ -2476,11 +2508,16 @@
 				if(impostor == null)
 					return;
 
-				if(Array.isArray(data.velocity))
-					impostor.setLinearVelocity(vector(data.velocity));
+				/*
 
-				if(Array.isArray(data.angular))
-					impostor.setAngularVelocity(vector(data.angular));
+					Velocity is deliberately not set here. This runs from
+					onChange, which is before the frame reads back what the
+					simulation produced, so setting it here would hand the
+					document its own command instead of the result and gravity
+					would never be seen at all. It is applied once per frame in
+					onUpdate, after the reading is taken.
+
+				*/
 
 				if(data.damping != null && impostor.setDeltaPosition !== undefined)
 					impostor.physicsBody != null &&
@@ -2493,6 +2530,47 @@
 					impostor.physicsBody.allowSleep !== undefined) {
 
 					impostor.physicsBody.allowSleep = false;
+				}
+
+				/*
+
+					A body meant to stay upright has to be told so. Anything
+					standing taller than it is wide topples the moment it meets
+					an edge, and a figure that has fallen over cannot be walked.
+
+				*/
+				if(isObject(data.freeze) && impostor.physicsBody != null) {
+
+					let locked = Array.isArray(data.freeze.rotation) ?
+						data.freeze.rotation : [true, true, true];
+
+					let body = impostor.physicsBody;
+
+					if(body.angularFactor != null &&
+						body.angularFactor.set != null) {
+
+						body.angularFactor.set(
+							locked[0] ? 0 : 1,
+							locked[1] ? 0 : 1,
+							locked[2] ? 0 : 1
+						);
+
+					} else if(body.fixedRotation !== undefined) {
+
+						/*
+
+							Where only a whole-body lock is offered, asking for
+							any axis takes all of them, which is what an upright
+							character wants in any case.
+
+						*/
+						body.fixedRotation = locked.some(axis => axis);
+
+						if(body.updateMassProperties != null)
+							body.updateMassProperties();
+					}
+
+					impostor.setAngularVelocity(BABYLON.Vector3.Zero());
 				}
 			},
 
@@ -2582,8 +2660,68 @@
 				if(impostor == null)
 					return;
 
+				/*
+
+					What the simulation produced is read first. Reporting after
+					the command below would hand a document back its own
+					request, so gravity would never be seen and a body told to
+					rise once would rise for ever.
+
+				*/
 				let velocity = impostor.getLinearVelocity();
 				let angular = impostor.getAngularVelocity();
+
+				/*
+
+					Then the command for the coming step. Velocity is reasserted
+					every frame rather than only when it changes: setting it
+					once and leaving it lets friction and the solver eat it, so
+					a document holding a steady velocity — which is how anything
+					is driven under its own power — comes to a halt and never
+					moves again. A document that wants the solver to own
+					velocity simply omits the field.
+
+				*/
+				/*
+
+					A component given as null is left to the simulation. A body
+					driven along the ground wants to say how fast it is going
+					without saying anything about falling: reading the vertical
+					back out and handing it in again feeds a value that is
+					always a frame old into the value it came from, and the two
+					settle into an oscillation instead of a fall.
+
+				*/
+				const drive = (axis, current) => {
+
+					let asked = instance.data[axis];
+
+					if(!Array.isArray(asked))
+						return null;
+
+					let live = axis === "velocity" ?
+						impostor.getLinearVelocity() :
+						impostor.getAngularVelocity();
+
+					if(live == null)
+						return null;
+
+					return new BABYLON.Vector3(
+						typeof asked[0] === "number" ? asked[0] : live.x,
+						typeof asked[1] === "number" ? asked[1] : live.y,
+						typeof asked[2] === "number" ? asked[2] : live.z
+					);
+				};
+
+				let linear = drive("velocity");
+
+				if(linear != null)
+					impostor.setLinearVelocity(linear);
+
+				let spin = drive("angular");
+
+				if(spin != null)
+					impostor.setAngularVelocity(spin);
 
 				let contacts = context.meta.contacts[instance.entityKey];
 
@@ -3579,13 +3717,26 @@
 
 		onSync: context => {
 
-			let now = typeof performance !== "undefined" ?
-				performance.now() : Date.now();
+			/*
 
-			let previous = context.meta.clock != null ? context.meta.clock : now;
-			let unscaled = Math.min((now - previous) / 1000, 0.25);
+				One clock. A host that measures its own frames supplies the
+				duration; a host that does not is given the fixed step, which
+				is also what the simulation advances by. Deriving the two from
+				different sources leaves the scripts and the solver disagreeing
+				about how much time a frame was, and a document driving a body
+				under its own power then asks for a speed it never reaches.
 
-			context.meta.clock = now;
+				It also makes a run without a display reproducible, since
+				nothing is left depending on how long a frame happened to take.
+
+			*/
+			let measured = context.meta.engine.getDeltaTime != null ?
+				context.meta.engine.getDeltaTime() : 0;
+
+			let fixed = context.meta.step != null ? context.meta.step : 1 / 60;
+
+			let unscaled = measured > 0 ?
+				Math.min(measured / 1000, 0.25) : fixed;
 			context.meta.gesture = input.gesture;
 
 			/*
@@ -3610,6 +3761,9 @@
 			context.meta.elapsed =
 				(context.meta.elapsed != null ? context.meta.elapsed : 0) +
 				unscaled * scale;
+
+			/* The same duration the simulation will be advanced by. */
+			context.meta.frame = unscaled * scale;
 
 			let presenting = input.xr(context);
 
@@ -3777,6 +3931,17 @@
 
 				*/
 				if(driven && simulatedMesh != null) {
+
+					/*
+
+						An invisible collision proxy is never drawn, so nothing
+						else recomputes its world matrix, and its absolute
+						position stays as stale as the last time something did.
+						The body moves correctly and the document is told it has
+						barely moved at all.
+
+					*/
+					simulatedMesh.computeWorldMatrix(true);
 
 					if(previous !== signature) {
 
@@ -4109,29 +4274,36 @@
 					cannot spiral.
 
 				*/
-				let measured = context.meta.engine.getDeltaTime();
+				/*
 
-				if(!(measured > 0)) {
+					Advanced by the same duration the frame told the scripts
+					about, so that what a document asks for and what the solver
+					delivers are measured against one clock.
+
+				*/
+				context.meta.accumulator =
+					(context.meta.accumulator != null ?
+						context.meta.accumulator : 0) +
+					(context.meta.frame != null ? context.meta.frame : step);
+
+				let iterations = 0;
+
+				let ceiling = Math.max(5, Math.ceil(
+					(context.meta.timeScale != null ?
+						context.meta.timeScale : 1) * 4
+				));
+
+				while(context.meta.accumulator >= step && iterations < ceiling) {
 
 					physics._step(step);
 
-				} else {
-
-					context.meta.accumulator =
-						(context.meta.accumulator != null ?
-							context.meta.accumulator : 0) +
-						Math.min(measured / 1000, 0.25);
-
-					let iterations = 0;
-
-					while(context.meta.accumulator >= step && iterations < 5) {
-
-						physics._step(step);
-
-						context.meta.accumulator -= step;
-						iterations++;
-					}
+					context.meta.accumulator -= step;
+					iterations++;
 				}
+
+				/* A backlog beyond the ceiling is dropped, not carried. */
+				if(context.meta.accumulator > step * ceiling)
+					context.meta.accumulator = 0;
 			}
 
 			input.flush();
