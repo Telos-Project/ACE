@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>ACE</title>
 		<style>
-			html, body { margin: 0; height: 100%; background: #141821; overflow: hidden; }
+			html, body { margin: 0; height: 100%; background: black; overflow: hidden; }
 			#stage { position: absolute; inset: 0; }
 		</style>
 	</head>
@@ -22,10 +22,7 @@
 		<script>
 
 			fetch("gameFile.json").then(response => response.json()).then(scene => {
-
-				let context = ace.run("#stage", scene);
-
-				window.context = context;
+				ace.run("#stage", scene);
 			});
 
 		</script>
