@@ -344,6 +344,30 @@
 
 			walk(doc, [], { }, false);
 
+			/*
+
+				A package is part of the scene only if something beneath it is a
+				component. APInt utilities without the tag are data — world
+				content, tables, saved state — and the packages holding them are
+				a filing system, not a place. Marking them keeps an adapter from
+				building a transform for every row of a table.
+
+			*/
+			let scene = { };
+
+			components.forEach(record => {
+
+				let path = record.entity;
+
+				for(let depth = path.length; depth > 0; depth--)
+					scene[ace.pathKey(path.slice(0, depth))] = true;
+			});
+
+			entities.forEach(record => {
+
+				record.scene = scene[record.key] === true;
+			});
+
 			return { components, entities, errors };
 		},
 

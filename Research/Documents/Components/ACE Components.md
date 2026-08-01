@@ -9,6 +9,22 @@ Proposed replacement and expansion for README §2.2.
 All ACE component utilities shall have the tag "telos-ace", and their primary tag (index 0 of the
 tags list, per APInt §2.2.4) shall determine the type of component they represent.
 
+### 2.2.0 - Components and Content
+
+A utility without the tag is not a component and shall be ignored by the engine entirely. It
+remains part of the document, and is therefore readable by scripts, which is how a document carries
+the things a scene is made *from* rather than made *of*: maps, tables of monsters and items, quest
+definitions, dialogue, saved progress, and any part of a world that outlives the moment being
+played.
+
+A package containing no component anywhere beneath it is not part of the scene. Adapters shall not
+build a transform for it: it is a filing system, not a place, and a large body of content would
+otherwise cost a node per row.
+
+The distinction is the document's own, and needs nothing added to APInt to express: the tag is what
+marks a utility as the engine's business, and everything untagged is simply data that happens to be
+kept in the same file as the scene that reads it.
+
 ### 2.2.1 - Property Layout
 
 A component utility's properties field shall contain up to two data objects:
@@ -242,6 +258,12 @@ entity, both derived by the adapter, so that a document turning about the head h
 frame it can rely on. A document given a world position where it expected a rig-relative one is
 thrown further from its subject the further it travels from the origin.
 
+A reference space carries a position and a heading, and nothing else usefully. An adapter shall not
+rotate one about any axis but the vertical: the position is carried in the same transform, so an
+offset built from the base space discards it, and the viewer is returned to the origin on every
+frame the subject is otherwise still. A document wanting a subject to look or travel up and down
+should move the subject rather than tilt the space, which also spares it tilting the horizon.
+
 While presenting, the headset reports its pose within a reference space that knows nothing of where
 the document has placed its subject. The adapter shall resolve the headset against the camera's
 entity, so that the document's transform is the origin the headset moves around within and
@@ -313,7 +335,7 @@ the surface reports and anything a document derives from it.
 | layout | object | — | Binary content layout: `{ stride, attributes: { position: {offset, type, count}, ... } }` |
 | billboard | string | "none" | "none", "y", "full" — orients toward the active camera |
 | shadow | object | — | `{ cast, receive }`, both boolean, both default true |
-| instances | object[] | — | Per-instance `{ position, rotation, scale, color }` for instanced rendering |
+| instances | object[] | — | Per-instance `{ position, rotation, scale }`, drawing the same mesh once for each. A tiled scene is thousands of copies of a handful of shapes, and a component apiece would be thousands of components diffed every frame to say the same thing |
 | node | string | — | For loaded models, render only the named sub-node |
 
 2D sprites are expressed as `shape: "plane"` with a material carrying a `region`. Sprite sheets

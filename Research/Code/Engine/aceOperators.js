@@ -1104,6 +1104,25 @@
 
 						state.rigged = "reference-space";
 
+						/*
+
+							The view is not tilted. Babylon's helper carries the
+							yaw of the camera it is handed and discards the
+							rest, and layering a rotation of one's own over the
+							base reference space discards the position along
+							with it: the viewer is dropped to the origin on
+							every frame the rig is not otherwise moving, and
+							snaps back for a single frame whenever it is.
+
+							Babylon does have a mechanism for this — it watches
+							its own camera and rebuilds the space from the
+							difference — but it is meant to be driven once, not
+							held against head tracking every frame. Pitching a
+							reference space also tilts the horizon with it,
+							which is uncomfortable on foot.
+
+						*/
+
 					} else if(node != null) {
 
 						/* Nothing better available; at least follow position. */
@@ -2198,6 +2217,31 @@
 					mesh.billboardMode = data.billboard === "y" ?
 						BABYLON.Mesh.BILLBOARDMODE_Y :
 						BABYLON.Mesh.BILLBOARDMODE_ALL;
+				}
+
+				/*
+
+					One mesh drawn many times. A tiled scene is thousands of
+					copies of a handful of shapes, and a component apiece would
+					be thousands of components diffed every frame to say the
+					same thing.
+
+				*/
+				if(Array.isArray(data.instances) &&
+					mesh.thinInstanceSetBuffer != null) {
+
+					let matrices = new Float32Array(data.instances.length * 16);
+
+					data.instances.forEach((entry, index) => {
+
+						BABYLON.Matrix.Compose(
+							scale(entry.scale != null ? entry.scale : 1),
+							quaternion(entry.rotation),
+							vector(entry.position)
+						).copyToArray(matrices, index * 16);
+					});
+
+					mesh.thinInstanceSetBuffer("matrix", matrices, 16, true);
 				}
 
 				let material = siblingInstance(context, instance, "material");
@@ -3879,7 +3923,9 @@
 
 			let live = { };
 
-			context.resolved.entities.forEach(record => {
+			context.resolved.entities.filter(
+				record => record.scene !== false
+			).forEach(record => {
 
 				live[record.key] = true;
 
