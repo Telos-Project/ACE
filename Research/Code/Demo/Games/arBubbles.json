@@ -1,0 +1,1411 @@
+{
+	"packages": {
+		"world": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"settings": {
+					"properties": {
+						"tags": [
+							"world",
+							"telos-ace"
+						],
+						"data": {
+							"gravity": null,
+							"background": [
+								0,
+								0,
+								0,
+								0
+							],
+							"ambient": [
+								0.16,
+								0.18,
+								0.22
+							]
+						}
+					}
+				}
+			}
+		},
+		"sun": {
+			"properties": {
+				"meta": {
+					"data": {
+						"rotation": [
+							-0.8,
+							0.6,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "directional",
+							"color": "#ffffff",
+							"intensity": 1.6
+						}
+					}
+				}
+			}
+		},
+		"sky": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "ambient",
+							"color": "#8fb6e0",
+							"intensity": 0.7
+						}
+					}
+				}
+			}
+		},
+		"rig": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							0,
+							0
+						],
+						"rotation": [
+							0,
+							0,
+							0
+						]
+					}
+				}
+			},
+			"packages": {
+				"head": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									1.6,
+									0
+								],
+								"rotation": [
+									0,
+									0,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"camera": {
+							"properties": {
+								"tags": [
+									"camera",
+									"telos-ace"
+								],
+								"data": {
+									"projection": "perspective",
+									"fov": 1.05,
+									"near": 0.05,
+									"far": 60,
+									"control": "none",
+									"xr": {
+										"mode": "ar",
+										"space": "local-floor",
+										"features": [
+											"hand-tracking"
+										]
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"bubbles": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"b0": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b1": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b2": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b3": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b4": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b5": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b6": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b7": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b8": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b9": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b10": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b11": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b12": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				},
+				"b13": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"scale": 0.3,
+								"enabled": false
+							},
+							"tags": [
+								"bubble"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										1,
+										1,
+										1
+									],
+									"segments": 14,
+									"shadow": {
+										"cast": false,
+										"receive": false
+									}
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": [
+										0.55,
+										0.8,
+										1,
+										0.5
+									],
+									"blend": "blend",
+									"side": "double",
+									"roughness": 0.15,
+									"metallic": 0.1,
+									"emissive": [
+										0.05,
+										0.12,
+										0.2
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"hands": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"left": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"enabled": false
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										0.05,
+										0.05,
+										0.05
+									],
+									"segments": 8
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#ffd9a0",
+									"unlit": true
+								}
+							}
+						},
+						"touch": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "overlap",
+									"shape": {
+										"shape": "sphere",
+										"size": 0.1
+									},
+									"tags": [
+										"bubble"
+									],
+									"limit": 0,
+									"continuous": true
+								}
+							}
+						}
+					}
+				},
+				"right": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									-50,
+									0
+								],
+								"enabled": false
+							}
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "sphere",
+									"size": [
+										0.05,
+										0.05,
+										0.05
+									],
+									"segments": 8
+								}
+							}
+						},
+						"skin": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#ffd9a0",
+									"unlit": true
+								}
+							}
+						},
+						"touch": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "overlap",
+									"shape": {
+										"shape": "sphere",
+										"size": 0.1
+									},
+									"tags": [
+										"bubble"
+									],
+									"limit": 0,
+									"continuous": true
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"beams": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"left": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									0,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"shot": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "ray",
+									"origin": [
+										0,
+										-50,
+										0
+									],
+									"direction": [
+										0,
+										-1,
+										0
+									],
+									"distance": 8,
+									"limit": 1,
+									"continuous": true,
+									"tags": [
+										"bubble"
+									]
+								}
+							}
+						}
+					}
+				},
+				"right": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									0,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"shot": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "ray",
+									"origin": [
+										0,
+										-50,
+										0
+									],
+									"direction": [
+										0,
+										-1,
+										0
+									],
+									"distance": 8,
+									"limit": 1,
+									"continuous": true,
+									"tags": [
+										"bubble"
+									]
+								}
+							}
+						}
+					}
+				},
+				"gaze": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									0,
+									0
+								]
+							}
+						}
+					},
+					"utilities": {
+						"shot": {
+							"properties": {
+								"tags": [
+									"query",
+									"telos-ace"
+								],
+								"data": {
+									"type": "ray",
+									"origin": [
+										0,
+										-50,
+										0
+									],
+									"direction": [
+										0,
+										-1,
+										0
+									],
+									"distance": 8,
+									"limit": 1,
+									"continuous": true,
+									"tags": [
+										"bubble"
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"ui": {
+			"properties": {
+				"meta": {
+					"data": {
+						"space": "camera",
+						"position": [
+							0,
+							-0.3,
+							-1
+						]
+					}
+				}
+			},
+			"utilities": {
+				"readout": {
+					"properties": {
+						"tags": [
+							"text",
+							"telos-ace"
+						],
+						"data": {
+							"size": 0.045,
+							"color": "#eaf2ff",
+							"width": 1.0,
+							"align": "center",
+							"shadow": {
+								"cast": false
+							}
+						}
+					},
+					"content": "0 popped"
+				}
+			}
+		},
+		"game": {
+			"properties": {
+				"meta": {
+					"data": {
+						"seed": 20260802,
+						"score": 0,
+						"due": 0,
+						"wanted": 7,
+						"yaw": 0,
+						"pitch": 0,
+						"eye": 1.6,
+						"popped": 0,
+						"bubbles": null
+					}
+				}
+			},
+			"utilities": {
+				"run": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch",
+							"order": 0
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst E = s.packages.engine;\nconst time = E.utilities.time.properties.state;\nconst display = E.utilities.display.properties.state;\nconst kb = E.packages.controllers.utilities['keyboard-0'];\nconst pt = E.packages.controllers.utilities['pointer-0'];\nconst me = s.packages.game;\nconst g = JSON.parse(JSON.stringify(me.properties.meta.data));\nconst dt = Math.min(time.delta, 0.1);\n\nconst view = s.packages.rig.packages.head.utilities.camera.properties.state;\nconst presenting = !!(view && view.presenting);\n\nconst hands = ['left', 'right'];\n\nconst pad = (hand) =>\n\tE.packages.controllers.utilities['xr-controller-' + hand] || null;\n\nconst rand = () => {\n\tg.seed = (g.seed * 1103515245 + 12345) % 2147483648;\n\treturn g.seed / 2147483648;\n};\n\n// ------------------------------------------------------------------ bubbles\n\nconst SLOTS = 14;\n\n// A bubble is placed on a shell around wherever the player is standing, high\n// enough to reach and far enough not to be inside them.\nconst place = (slot) => {\n\tconst angle = rand() * Math.PI * 2;\n\tconst far = 0.9 + rand() * 1.7;\n\n\treturn {\n\t\talive: 1,\n\t\tat: [\n\t\t\tMath.sin(angle) * far,\n\t\t\t0.35 + rand() * 1.5,\n\t\t\tMath.cos(angle) * far\n\t\t],\n\t\tsize: 0.13 + rand() * 0.12,\n\t\tphase: rand() * Math.PI * 2,\n\t\trise: 0.06 + rand() * 0.12,\n\t\tpop: 0\n\t};\n};\n\nif (!g.bubbles || g.bubbles.length !== SLOTS) {\n\t// The pool starts empty. Filling it with placed bubbles would put every\n\t// slot in the air at once, which is twice what is ever wanted up.\n\tg.bubbles = [];\n\tfor (let i = 0; i < SLOTS; i++) {\n\t\tg.bubbles.push({ alive: 0, at: [0, -50, 0], size: 0.2, phase: 0, rise: 0, pop: 0 });\n\t}\n}\n\n// Only a few are up at once, and a new one arrives every so often.\ng.due = (g.due || 0) - dt;\n\nlet up = g.bubbles.filter(b => b.alive).length;\n\n// A wanted of none is a real answer, so it cannot be tested for falsely.\nif (g.due <= 0 && up < (g.wanted != null ? g.wanted : 7)) {\n\tconst slot = g.bubbles.findIndex(b => !b.alive && b.pop <= 0);\n\tif (slot >= 0) g.bubbles[slot] = place(slot);\n\tg.due = up < 3 ? 0.15 : 0.7;\n}\n\n// --------------------------------------------------------------------- aim\n\n// On foot the view is turned with the pointer and the bubbles are popped by\n// aiming at them; in a session the controllers do both.\nlet yaw = g.yaw || 0;\nlet pitch = g.pitch || 0;\n\nif (!presenting && pt) {\n\tconst a = pt.properties.state.analog;\n\tyaw -= (a.dx || 0) * 3.2;\n\tpitch += (a.dy || 0) * 3.2;\n\tpitch = Math.max(-1.2, Math.min(1.2, pitch));\n}\n\nconst cp = Math.cos(pitch);\n\nconst gaze = {\n\tfrom: [0, g.eye || 1.6, 0],\n\tdir: [-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp]\n};\n\n// ------------------------------------------------------------------ popping\n\nconst popped = [];\n\nconst burst = (index) => {\n\tconst b = g.bubbles[index];\n\tif (!b || !b.alive) return;\n\tb.alive = 0;\n\tb.pop = 0.28;\n\tg.score = (g.score || 0) + 1;\n\tpopped.push(index);\n};\n\nconst slotOf = (target) => {\n\tif (!Array.isArray(target) || target[0] !== 'bubbles') return -1;\n\tconst name = target[1];\n\tif (typeof name !== 'string' || name.indexOf('b') !== 0) return -1;\n\tconst n = parseInt(name.slice(1), 10);\n\treturn isNaN(n) ? -1 : n;\n};\n\n// Touched: an overlap on each hand, which is how a bubble is popped by simply\n// putting a controller through it.\nhands.forEach(hand => {\n\tconst probe = s.packages.hands.packages[hand]\n\t\t.utilities.touch.properties.state;\n\n\tif (!probe || !probe.hits) return;\n\n\tprobe.hits.forEach(hit => {\n\t\tconst slot = slotOf(hit.target);\n\t\tif (slot >= 0) burst(slot);\n\t});\n});\n\n// Aimed at: a ray, fired while a select is held. A select is a trigger on a\n// controller, a pinch of a hand, and a tap on the screen of a phone.\nconst aims = [];\n\nif (presenting) {\n\thands.forEach(hand => {\n\t\tconst c = pad(hand);\n\t\tif (!c) return;\n\t\tconst held = c.properties.state.digital.indexOf('select') >= 0;\n\t\tconst ray = c.properties.state.ray;\n\t\tif (!ray) return;\n\t\taims.push({ hand: hand, on: held, from: ray.origin, dir: ray.direction });\n\t});\n} else {\n\tconst held = (pt && pt.properties.state.digital.indexOf('button0') >= 0) ||\n\t\t(kb && kb.properties.state.digital.indexOf('Space') >= 0);\n\taims.push({ hand: 'gaze', on: held, from: gaze.from, dir: gaze.dir });\n}\n\naims.forEach(aim => {\n\tif (!aim.on) return;\n\tconst beam = s.packages.beams.packages[aim.hand];\n\tif (!beam) return;\n\tconst probe = beam.utilities.shot.properties.state;\n\tif (!probe || !probe.hits || !probe.hits.length) return;\n\tconst slot = slotOf(probe.hits[0].target);\n\tif (slot >= 0) burst(slot);\n});\n\n// ------------------------------------------------------------------- drift\n\ng.bubbles.forEach(b => {\n\tif (b.alive) {\n\t\tb.phase += dt * 1.4;\n\t\tb.at[1] += b.rise * dt;\n\t\tif (b.at[1] > 2.6) { b.alive = 0; b.pop = 0; }\n\t} else if (b.pop > 0) {\n\t\tb.pop = Math.max(0, b.pop - dt);\n\t}\n});\n\n// -------------------------------------------------------------------- patch\n\nconst patch = { packages: {} };\n\n// --- the bubbles themselves\npatch.packages.bubbles = { packages: {} };\n\ng.bubbles.forEach((b, i) => {\n\tconst showing = b.alive === 1 || b.pop > 0;\n\n\t// A burst bubble swells and fades rather than vanishing.\n\tconst grow = b.alive ? 1 : 1 + (0.28 - b.pop) * 4;\n\n\tpatch.packages.bubbles.packages['b' + i] = {\n\t\tproperties: { meta: { data: {\n\t\t\tenabled: showing,\n\t\t\tposition: b.alive || b.pop > 0\n\t\t\t\t? [\n\t\t\t\t\tb.at[0] + Math.sin(b.phase) * 0.05,\n\t\t\t\t\tb.at[1],\n\t\t\t\t\tb.at[2] + Math.cos(b.phase * 0.8) * 0.05\n\t\t\t\t]\n\t\t\t\t: [0, -50, 0],\n\t\t\tscale: b.size * 2 * grow\n\t\t} } },\n\t\tutilities: { skin: { properties: { data: {\n\t\t\tcolor: [0.55, 0.8, 1, b.alive ? 0.5 : Math.max(0, b.pop / 0.28) * 0.4]\n\t\t} } } }\n\t};\n});\n\n// --- the hands, which are where the controllers are\npatch.packages.hands = { packages: {} };\n\nhands.forEach(hand => {\n\tconst c = pad(hand);\n\tconst pose = c && c.properties.state.pose\n\t\t? c.properties.state.pose.position : null;\n\n\tpatch.packages.hands.packages[hand] = {\n\t\tproperties: { meta: { data: {\n\t\t\tenabled: !!pose,\n\t\t\tposition: pose ? pose : [0, -50, 0]\n\t\t} } }\n\t};\n});\n\n// --- the rays, which are written into the queries rather than drawn\npatch.packages.beams = { packages: {} };\n\nconst beam = (name, from, dir) => {\n\tpatch.packages.beams.packages[name] = { utilities: { shot: {\n\t\tproperties: { data: { origin: from, direction: dir } }\n\t} } };\n};\n\nif (presenting) {\n\thands.forEach(hand => {\n\t\tconst c = pad(hand);\n\t\tconst ray = c && c.properties.state.ray;\n\t\tbeam(hand, ray ? ray.origin : [0, -50, 0], ray ? ray.direction : [0, -1, 0]);\n\t});\n\tbeam('gaze', [0, -50, 0], [0, -1, 0]);\n} else {\n\tbeam('gaze', gaze.from, gaze.dir);\n\thands.forEach(hand => beam(hand, [0, -50, 0], [0, -1, 0]));\n}\n\n// --- the view. In a session the headset supplies it; on foot the document\n//     turns the rig and pitches the head.\npatch.packages.rig = {\n\tproperties: { meta: { data: { rotation: [0, yaw, 0], yaw: yaw } } },\n\tpackages: { head: { properties: { meta: { data: {\n\t\tposition: presenting ? [0, 0, 0] : [0, g.eye || 1.6, 0],\n\t\trotation: [presenting ? 0 : pitch, 0, 0]\n\t} } } } }\n};\n\n// --- the readout\nconst mode = presenting ? (display.xr && display.xr.mode === 'immersive-ar'\n\t? 'AR' : 'VR') : 'screen';\n\nconst line = (g.score || 0) + ' popped   ' + up + ' up   ' + mode +\n\t(presenting ? '   trigger or touch' : '   click or space');\n\nif (s.packages.ui.utilities.readout.content !== line) {\n\tpatch.packages.ui = { utilities: { readout: { content: line } } };\n}\n\ng.yaw = yaw;\ng.pitch = pitch;\ng.popped = popped.length;\n\npatch.packages.game = { properties: { meta: { data: g } } };\n\nreturn JSON.stringify(patch);\n"
+				}
+			}
+		}
+	}
+}

@@ -205,6 +205,10 @@ Scene-wide settings. Exactly one per document, in the root entity. Ignored elsew
 |---|---|---|---|
 | gravity | vec3 | [0,-9.81,0] | Omit or set null to disable physics simulation entirely |
 | background | color \| reference | [0,0,0,1] | A color, or `{ "texture": <path> }` referencing a cube texture, which becomes the skybox and the environment. A skybox is scenery and shall never answer a query |
+
+A background whose alpha is zero clears to nothing at all, which is what an augmented session needs:
+the passthrough camera shows through wherever the document has drawn nothing. The same document on a
+screen renders on black, so an augmented scene can be tried without a device.
 | horizon | number | 1000 | Skybox radius |
 | ambient | color | [0,0,0] | Ambient light contribution |
 | fog | object | — | `{ color, near, far }` |
@@ -779,7 +783,8 @@ XR hand — is a controller, and is read identically.
 - touch: "contact".
 - gamepad: "a", "b", "x", "y", "left-bumper", "right-bumper", "left-stick", "right-stick",
   "start", "select", "up", "down", "left", "right", "home".
-- xr-controller: "trigger", "squeeze", "touchpad", "thumbstick", "a", "b", in that button order.
+- xr-controller: "trigger", "squeeze", "touchpad", "thumbstick", "a", "b", in that button order,
+  and "select".
 - xr-hand: "pinch", "grip".
 
 **Analog identifiers.**
@@ -791,7 +796,14 @@ XR hand — is a controller, and is read identically.
 - xr-hand: "pinch".
 
 Tracked controllers are aliased by handedness rather than by index, since that is how a document
-addresses them: `engine.controllers.xr-controller-left`.
+addresses them: `engine.controllers.xr-controller-left`. A device that reports no handedness is
+aliased `none`.
+
+**select** is the one action every kind of immersive input can make, and adapters shall report it
+for all of them: a trigger pulled on a controller, a pinch of a tracked hand, and a tap on the
+screen of a phone. A controller reports it alongside `trigger`, so that a document binding to
+`select` needs no second binding for any of the three. A controller shall be published whether or
+not there is a gamepad behind it — a phone in a session has a ray and a select and nothing else.
 
 Analog values are in [-1,1] for axes and [0,1] for triggers and pressure. A stick pushed away from
 the person reads positive on every device, which for WebXR means inverting what the runtime
