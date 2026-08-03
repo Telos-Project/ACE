@@ -1,0 +1,230 @@
+{
+	"packages": {
+		"world": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"settings": {
+					"properties": {
+						"tags": [
+							"world",
+							"telos-ace"
+						],
+						"data": {
+							"gravity": null,
+							"background": "#12151c",
+							"ambient": [
+								0.2,
+								0.2,
+								0.25
+							]
+						}
+					}
+				}
+			}
+		},
+		"eye": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							1.5,
+							6
+						]
+					}
+				}
+			},
+			"utilities": {
+				"camera": {
+					"properties": {
+						"tags": [
+							"camera",
+							"telos-ace"
+						],
+						"data": {
+							"target": [
+								0,
+								0.5,
+								0
+							]
+						}
+					}
+				}
+			}
+		},
+		"sun": {
+			"properties": {
+				"meta": {
+					"data": {
+						"rotation": [
+							-0.9,
+							0.5,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "directional",
+							"intensity": 2.0
+						}
+					}
+				}
+			}
+		},
+		"spinner": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							-2,
+							1,
+							0
+						],
+						"turn": 0
+					}
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "box",
+							"size": [
+								1,
+								1,
+								1
+							]
+						}
+					}
+				},
+				"skin": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#c08040",
+							"roughness": 0.6
+						}
+					}
+				},
+				"turn": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "gdscript",
+							"output": "patch"
+						}
+					},
+					"content": "var s = JSON.parse_string(state)\nvar g = s[\"packages\"][\"spinner\"][\"properties\"][\"meta\"][\"data\"]\nvar t = s[\"packages\"][\"engine\"][\"utilities\"][\"time\"][\"properties\"][\"state\"]\nvar turn = float(g.get(\"turn\", 0.0)) + float(t[\"delta\"]) * 1.2\nreturn JSON.stringify({\n\t\"packages\": {\"spinner\": {\"properties\": {\"meta\": {\"data\": {\n\t\t\"turn\": turn, \"rotation\": [0, turn, 0]\n\t}}}}}\n})"
+				}
+			}
+		},
+		"bobber": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							2,
+							1,
+							0
+						],
+						"at": 0
+					}
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "sphere",
+							"size": [
+								1,
+								1,
+								1
+							],
+							"segments": 16
+						}
+					}
+				},
+				"skin": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#60a0c0",
+							"roughness": 0.4
+						}
+					}
+				},
+				"bob": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch"
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst g = s.packages.bobber.properties.meta.data;\nconst t = s.packages.engine.utilities.time.properties.state;\nconst at = (g.at || 0) + t.delta * 2.0;\nreturn JSON.stringify({ packages: { bobber: { properties: { meta: { data: {\n\tat: at, position: [2, 1 + Math.sin(at) * 0.5, 0]\n} } } } } });"
+				}
+			}
+		},
+		"label": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							2.4,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"text": {
+					"properties": {
+						"tags": [
+							"text",
+							"telos-ace"
+						],
+						"data": {
+							"size": 0.4,
+							"color": "#e8eef8",
+							"align": "center",
+							"width": 8
+						}
+					},
+					"content": "gdscript left, javascript right"
+				}
+			}
+		}
+	}
+}
