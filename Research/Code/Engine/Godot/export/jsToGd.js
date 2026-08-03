@@ -346,9 +346,9 @@ class Translator {
 			let index = local(fn.params[1].name);
 
 			this.write("var " + held + " = " + over);
-			this.write("for " + index + " in range(_len(" + held + ")):");
+			this.write("for " + index + " in range(_js_len(" + held + ")):");
 			this.depth++;
-			this.write("var " + name + " = _get(" + held + ", " + index + ")");
+			this.write("var " + name + " = _js_get(" + held + ", " + index + ")");
 
 		} else {
 
@@ -378,12 +378,12 @@ class Translator {
 		}
 
 		if(node.type === "LogicalExpression" && node.operator !== "??")
-			return "_truthy(" + this.expression(node) + ")";
+			return "_js_truthy(" + this.expression(node) + ")";
 
 		if(node.type === "UnaryExpression" && node.operator === "!")
 			return "not " + this.truthy(node.argument);
 
-		return "_truthy(" + this.expression(node) + ")";
+		return "_js_truthy(" + this.expression(node) + ")";
 	}
 
 	expression(node) {
@@ -462,7 +462,7 @@ class Translator {
 					return "float(" + this.expression(node.argument) + ")";
 
 				if(node.operator === "typeof")
-					return "_typeof(" + this.expression(node.argument) + ")";
+					return "_js_typeof(" + this.expression(node.argument) + ")";
 
 				if(node.operator === "delete") {
 
@@ -471,7 +471,7 @@ class Translator {
 					if(target.type !== "MemberExpression")
 						throw new Unsupported(node, "only a field may be deleted");
 
-					return "_erase(" + this.expression(target.object) + ", "
+					return "_js_erase(" + this.expression(target.object) + ", "
 						+ this.key(target) + ")";
 				}
 
@@ -543,7 +543,7 @@ class Translator {
 		}
 
 		if(!node.computed && node.property.name === "length")
-			return "_len(" + this.expression(object) + ")";
+			return "_js_len(" + this.expression(object) + ")";
 
 		/*
 
@@ -552,7 +552,7 @@ class Translator {
 			goes through a lookup that answers null.
 
 		*/
-		return "_get(" + this.expression(object) + ", " + this.key(node) + ")";
+		return "_js_get(" + this.expression(object) + ", " + this.key(node) + ")";
 	}
 
 	binary(node) {
@@ -565,7 +565,7 @@ class Translator {
 			case "+":
 				/* Either side may be a string, and GDScript will not add a
 				   string to a number. */
-				return "_add(" + left + ", " + right + ")";
+				return "_js_add(" + left + ", " + right + ")";
 
 			case "-": case "*":
 				return "(" + left + " " + node.operator + " " + right + ")";
@@ -573,10 +573,10 @@ class Translator {
 			case "/":
 				/* Two integers divide to an integer in GDScript and to a
 				   number in JavaScript. */
-				return "_div(" + left + ", " + right + ")";
+				return "_js_div(" + left + ", " + right + ")";
 
 			case "%":
-				return "_mod(" + left + ", " + right + ")";
+				return "_js_mod(" + left + ", " + right + ")";
 
 			case "===": case "==":
 				return "(" + left + " == " + right + ")";
@@ -588,7 +588,7 @@ class Translator {
 				return "(" + left + " " + node.operator + " " + right + ")";
 
 			case "in":
-				return "_has(" + right + ", " + left + ")";
+				return "_js_has(" + right + ", " + left + ")";
 
 			case "instanceof":
 				throw new Unsupported(node, "instanceof is not translated");
@@ -610,13 +610,13 @@ class Translator {
 		let right = "func(): return " + this.expression(node.right);
 
 		if(node.operator === "||")
-			return "_or(" + left + ", " + right + ")";
+			return "_js_or(" + left + ", " + right + ")";
 
 		if(node.operator === "&&")
-			return "_and(" + left + ", " + right + ")";
+			return "_js_and(" + left + ", " + right + ")";
 
 		if(node.operator === "??")
-			return "_nullish(" + left + ", " + right + ")";
+			return "_js_nullish(" + left + ", " + right + ")";
 
 		throw new Unsupported(node, "this operator is not translated");
 	}
@@ -644,12 +644,12 @@ class Translator {
 
 		if(node.operator === "=") {
 
-			return "_put(" + object + ", " + key + ", "
+			return "_js_put(" + object + ", " + key + ", "
 				+ this.expression(node.right) + ")";
 		}
 
-		return "_put(" + object + ", " + key + ", " + this.compound(
-			node.operator, "_get(" + object + ", " + key + ")",
+		return "_js_put(" + object + ", " + key + ", " + this.compound(
+			node.operator, "_js_get(" + object + ", " + key + ")",
 			this.expression(node.right)) + ")";
 	}
 
@@ -657,11 +657,11 @@ class Translator {
 
 		switch(operator) {
 
-			case "+=": return "_add(" + left + ", " + right + ")";
+			case "+=": return "_js_add(" + left + ", " + right + ")";
 			case "-=": return "(" + left + " - " + right + ")";
 			case "*=": return "(" + left + " * " + right + ")";
-			case "/=": return "_div(" + left + ", " + right + ")";
-			case "%=": return "_mod(" + left + ", " + right + ")";
+			case "/=": return "_js_div(" + left + ", " + right + ")";
+			case "%=": return "_js_mod(" + left + ", " + right + ")";
 		}
 
 		throw new Error("this assignment is not translated: " + operator);
@@ -705,7 +705,7 @@ class Translator {
 			if(callee.name === "isNaN") return "is_nan(float(" + args[0] + "))";
 			if(callee.name === "String") return "str(" + args[0] + ")";
 			if(callee.name === "Number") return "float(" + args[0] + ")";
-			if(callee.name === "Boolean") return "_truthy(" + args[0] + ")";
+			if(callee.name === "Boolean") return "_js_truthy(" + args[0] + ")";
 
 			if(this.functions != null && !this.functions.has(callee.name)) {
 
@@ -733,7 +733,7 @@ class Translator {
 			}
 
 			if(host.name === "Math" && name === "hypot")
-				return "_hypot([" + args.join(", ") + "])";
+				return "_js_hypot([" + args.join(", ") + "])";
 
 			if(host.name === "Math" && name === "random")
 				return "randf()";
@@ -745,13 +745,13 @@ class Translator {
 				return "JSON.stringify(" + args[0] + ")";
 
 			if(host.name === "Object" && name === "keys")
-				return "_keys(" + args[0] + ")";
+				return "_js_keys(" + args[0] + ")";
 
 			if(host.name === "Object" && name === "values")
-				return "_values(" + args[0] + ")";
+				return "_js_values(" + args[0] + ")";
 
 			if(host.name === "Object" && name === "assign")
-				return "_assign([" + args.join(", ") + "])";
+				return "_js_assign([" + args.join(", ") + "])";
 
 			if(host.name === "Array" && name === "isArray")
 				return "(" + args[0] + " is Array)";
@@ -761,31 +761,31 @@ class Translator {
 
 		switch(name) {
 
-			case "push": return "_push(" + object + ", " + args.join(", ") + ")";
-			case "pop": return "_pop(" + object + ")";
-			case "shift": return "_shift(" + object + ")";
-			case "indexOf": return "_index_of(" + object + ", " + args[0] + ")";
-			case "includes": return "(_index_of(" + object + ", " + args[0] + ") >= 0)";
-			case "join": return "_join(" + object + ", " + (args[0] || '""') + ")";
-			case "slice": return "_slice(" + object + ", " + (args[0] || "0")
+			case "push": return "_js_push(" + object + ", " + args.join(", ") + ")";
+			case "pop": return "_js_pop(" + object + ")";
+			case "shift": return "_js_shift(" + object + ")";
+			case "indexOf": return "_js_index_of(" + object + ", " + args[0] + ")";
+			case "includes": return "(_js_index_of(" + object + ", " + args[0] + ") >= 0)";
+			case "join": return "_js_join(" + object + ", " + (args[0] || '""') + ")";
+			case "slice": return "_js_slice(" + object + ", " + (args[0] || "0")
 				+ ", " + (args[1] != null ? args[1] : "null") + ")";
-			case "concat": return "_concat(" + object + ", " + args[0] + ")";
-			case "toFixed": return "_fixed(" + object + ", " + (args[0] || "0") + ")";
+			case "concat": return "_js_concat(" + object + ", " + args[0] + ")";
+			case "toFixed": return "_js_fixed(" + object + ", " + (args[0] || "0") + ")";
 			case "toString": return "str(" + object + ")";
 			case "toLowerCase": return "str(" + object + ").to_lower()";
 			case "toUpperCase": return "str(" + object + ").to_upper()";
-			case "map": return "_map(" + object + ", " + args[0] + ")";
-			case "filter": return "_filter(" + object + ", " + args[0] + ")";
-			case "some": return "_some(" + object + ", " + args[0] + ")";
-			case "every": return "_every(" + object + ", " + args[0] + ")";
-			case "find": return "_find(" + object + ", " + args[0] + ")";
-			case "findIndex": return "_find_index(" + object + ", " + args[0] + ")";
-			case "sort": return "_sort(" + object + ", " + (args[0] || "null") + ")";
-			case "reverse": return "_reverse(" + object + ")";
-			case "reduce": return "_reduce(" + object + ", " + args[0]
+			case "map": return "_js_map(" + object + ", " + args[0] + ")";
+			case "filter": return "_js_filter(" + object + ", " + args[0] + ")";
+			case "some": return "_js_some(" + object + ", " + args[0] + ")";
+			case "every": return "_js_every(" + object + ", " + args[0] + ")";
+			case "find": return "_js_find(" + object + ", " + args[0] + ")";
+			case "findIndex": return "_js_find_index(" + object + ", " + args[0] + ")";
+			case "sort": return "_js_sort(" + object + ", " + (args[0] || "null") + ")";
+			case "reverse": return "_js_reverse(" + object + ")";
+			case "reduce": return "_js_reduce(" + object + ", " + args[0]
 				+ ", " + (args[1] != null ? args[1] : "null") + ")";
-			case "split": return "_split(" + object + ", " + args[0] + ")";
-			case "substring": return "_slice(" + object + ", " + args[0]
+			case "split": return "_js_split(" + object + ", " + args[0] + ")";
+			case "substring": return "_js_slice(" + object + ", " + args[0]
 				+ ", " + (args[1] != null ? args[1] : "null") + ")";
 			case "forEach":
 
@@ -809,7 +809,7 @@ const HELPERS = `
 
 ## --- what JavaScript means by these, written out once ---
 
-func _truthy(v) -> bool:
+func _js_truthy(v) -> bool:
 	if v == null:
 		return false
 	if v is bool:
@@ -823,19 +823,19 @@ func _truthy(v) -> bool:
 	return true
 
 
-func _or(a, b: Callable):
-	return a if _truthy(a) else b.call()
+func _js_or(a, b: Callable):
+	return a if _js_truthy(a) else b.call()
 
 
-func _and(a, b: Callable):
-	return b.call() if _truthy(a) else a
+func _js_and(a, b: Callable):
+	return b.call() if _js_truthy(a) else a
 
 
-func _nullish(a, b: Callable):
+func _js_nullish(a, b: Callable):
 	return b.call() if a == null else a
 
 
-func _get(o, k):
+func _js_get(o, k):
 	if o == null:
 		return null
 	if o is Dictionary:
@@ -849,7 +849,7 @@ func _get(o, k):
 	return null
 
 
-func _put(o, k, value):
+func _js_put(o, k, value):
 	if o is Dictionary:
 		o[k] = value
 	elif o is Array and (k is int or k is float):
@@ -860,13 +860,13 @@ func _put(o, k, value):
 	return value
 
 
-func _erase(o, k) -> bool:
+func _js_erase(o, k) -> bool:
 	if o is Dictionary:
 		return o.erase(k)
 	return false
 
 
-func _has(o, k) -> bool:
+func _js_has(o, k) -> bool:
 	if o is Dictionary:
 		return o.has(k)
 	if o is Array:
@@ -874,7 +874,7 @@ func _has(o, k) -> bool:
 	return false
 
 
-func _len(o) -> int:
+func _js_len(o) -> int:
 	if o == null:
 		return 0
 	if o is String:
@@ -884,9 +884,9 @@ func _len(o) -> int:
 	return 0
 
 
-func _add(a, b):
+func _js_add(a, b):
 	if a is String or b is String:
-		return _text(a) + _text(b)
+		return _js_text(a) + _js_text(b)
 	if a == null:
 		a = 0
 	if b == null:
@@ -894,7 +894,7 @@ func _add(a, b):
 	return a + b
 
 
-func _text(v) -> String:
+func _js_text(v) -> String:
 	if v == null:
 		return "null"
 	if v is bool:
@@ -904,17 +904,17 @@ func _text(v) -> String:
 	return str(v)
 
 
-func _div(a, b):
+func _js_div(a, b):
 	return float(a) / float(b)
 
 
-func _mod(a, b):
+func _js_mod(a, b):
 	if a is int and b is int:
 		return a % b
 	return fmod(float(a), float(b))
 
 
-func _typeof(v) -> String:
+func _js_typeof(v) -> String:
 	if v == null:
 		return "undefined"
 	if v is bool:
@@ -926,7 +926,7 @@ func _typeof(v) -> String:
 	return "object"
 
 
-func _keys(o) -> Array:
+func _js_keys(o) -> Array:
 	if o is Dictionary:
 		return o.keys()
 	if o is Array:
@@ -937,7 +937,7 @@ func _keys(o) -> Array:
 	return []
 
 
-func _values(o) -> Array:
+func _js_values(o) -> Array:
 	if o is Dictionary:
 		return o.values()
 	if o is Array:
@@ -945,7 +945,7 @@ func _values(o) -> Array:
 	return []
 
 
-func _assign(parts: Array):
+func _js_assign(parts: Array):
 	var out = parts[0] if parts.size() > 0 and parts[0] is Dictionary else {}
 	for i in range(1, parts.size()):
 		var each = parts[i]
@@ -955,26 +955,26 @@ func _assign(parts: Array):
 	return out
 
 
-func _push(o, v):
+func _js_push(o, v):
 	if o is Array:
 		o.append(v)
 		return o.size()
 	return 0
 
 
-func _pop(o):
+func _js_pop(o):
 	if o is Array and o.size() > 0:
 		return o.pop_back()
 	return null
 
 
-func _shift(o):
+func _js_shift(o):
 	if o is Array and o.size() > 0:
 		return o.pop_front()
 	return null
 
 
-func _index_of(o, v) -> int:
+func _js_index_of(o, v) -> int:
 	if o is Array:
 		return o.find(v)
 	if o is String:
@@ -982,17 +982,17 @@ func _index_of(o, v) -> int:
 	return -1
 
 
-func _join(o, sep) -> String:
+func _js_join(o, sep) -> String:
 	if not (o is Array):
 		return ""
 	var parts = []
 	for each in o:
-		parts.append(_text(each))
+		parts.append(_js_text(each))
 	return sep.join(parts)
 
 
-func _slice(o, from, upto):
-	var size = _len(o)
+func _js_slice(o, from, upto):
+	var size = _js_len(o)
 	var a = int(from)
 	if a < 0:
 		a = max(0, size + a)
@@ -1009,7 +1009,7 @@ func _slice(o, from, upto):
 	return []
 
 
-func _concat(o, other):
+func _js_concat(o, other):
 	if o is Array and other is Array:
 		return o + other
 	if o is Array:
@@ -1017,17 +1017,17 @@ func _concat(o, other):
 	return o
 
 
-func _fixed(v, places) -> String:
+func _js_fixed(v, places) -> String:
 	return String.num(float(v), int(places))
 
 
-func _split(o, sep) -> Array:
+func _js_split(o, sep) -> Array:
 	if not (o is String):
 		return []
 	return Array(o.split(str(sep)))
 
 
-func _map(o, fn: Callable) -> Array:
+func _js_map(o, fn: Callable) -> Array:
 	var out = []
 	if o is Array:
 		for each in o:
@@ -1035,48 +1035,48 @@ func _map(o, fn: Callable) -> Array:
 	return out
 
 
-func _filter(o, fn: Callable) -> Array:
+func _js_filter(o, fn: Callable) -> Array:
 	var out = []
 	if o is Array:
 		for each in o:
-			if _truthy(fn.call(each)):
+			if _js_truthy(fn.call(each)):
 				out.append(each)
 	return out
 
 
-func _some(o, fn: Callable) -> bool:
+func _js_some(o, fn: Callable) -> bool:
 	if o is Array:
 		for each in o:
-			if _truthy(fn.call(each)):
+			if _js_truthy(fn.call(each)):
 				return true
 	return false
 
 
-func _every(o, fn: Callable) -> bool:
+func _js_every(o, fn: Callable) -> bool:
 	if o is Array:
 		for each in o:
-			if not _truthy(fn.call(each)):
+			if not _js_truthy(fn.call(each)):
 				return false
 	return true
 
 
-func _find(o, fn: Callable):
+func _js_find(o, fn: Callable):
 	if o is Array:
 		for each in o:
-			if _truthy(fn.call(each)):
+			if _js_truthy(fn.call(each)):
 				return each
 	return null
 
 
-func _find_index(o, fn: Callable) -> int:
+func _js_find_index(o, fn: Callable) -> int:
 	if o is Array:
 		for i in range(o.size()):
-			if _truthy(fn.call(o[i])):
+			if _js_truthy(fn.call(o[i])):
 				return i
 	return -1
 
 
-func _sort(o, fn):
+func _js_sort(o, fn):
 	if not (o is Array):
 		return o
 	if fn == null:
@@ -1086,13 +1086,13 @@ func _sort(o, fn):
 	return o
 
 
-func _reverse(o):
+func _js_reverse(o):
 	if o is Array:
 		o.reverse()
 	return o
 
 
-func _reduce(o, fn: Callable, start):
+func _js_reduce(o, fn: Callable, start):
 	var total = start
 	if o is Array:
 		var first = 0
@@ -1104,7 +1104,7 @@ func _reduce(o, fn: Callable, start):
 	return total
 
 
-func _hypot(parts: Array) -> float:
+func _js_hypot(parts: Array) -> float:
 	var total = 0.0
 	for each in parts:
 		total += float(each) * float(each)
