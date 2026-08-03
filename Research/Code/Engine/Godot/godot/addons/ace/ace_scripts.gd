@@ -16,6 +16,7 @@ var _compiled: Dictionary = {}
 var _runs: Dictionary = {}
 var _js_host = null
 var _js_looked: bool = false
+var _js_announced: bool = false
 
 
 ## The bridge, if there is one. Godot's own JavaScriptBridge exists on a web
@@ -75,17 +76,29 @@ func _gdscript(id: String, code: String, state: String,
 		path: String) -> Dictionary:
 
 	if not _compiled.has(id) or _compiled[id]["source"] != code:
-		var body = ""
+		var source = ""
 
-		for line in code.split("\n"):
-			body += "\t" + line + "\n"
+		## A script may arrive either as a body to be wrapped, which is how one
+		## is written by hand, or as a whole class that already has its own
+		## run, which is what the exporter's translation of a JavaScript script
+		## produces: it needs members and methods of its own, and a body cannot
+		## have those. Wrapping the second kind again would bury its run inside
+		## another one.
+		if code.strip_edges().begins_with("extends "):
+			source = code
 
-		var source = (
-			"extends RefCounted\n"
-			+ "func run(state: String, path: String):\n"
-			+ body
-			+ "\treturn null\n"
-		)
+		else:
+			var body = ""
+
+			for line in code.split("\n"):
+				body += "\t" + line + "\n"
+
+			source = (
+				"extends RefCounted\n"
+				+ "func run(state: String, path: String):\n"
+				+ body
+				+ "\treturn null\n"
+			)
 
 		var made = GDScript.new()
 		made.source_code = source
@@ -113,6 +126,19 @@ func _js(id: String, code: String, state: String, path: String) -> Dictionary:
 	var host = _javascript()
 
 	if host == null:
+		## Said out loud, once. A document whose scripts never run does not
+		## look broken: it looks like a scene that sits there, which is a far
+		## worse thing to have to work out from the outside.
+		if not _js_announced:
+			_js_announced = true
+
+			push_warning(
+				"ACE: this document is scripted in JavaScript and Godot has "
+				+ "no JavaScript engine on desktop, so none of it is running. "
+				+ "Install a bridge such as GodotJS, or export for the web, "
+				+ "or set \"language\": \"gdscript\" on the script components."
+			)
+
 		return {"error":
 			"no JavaScript engine is available. Install a bridge such as "
 			+ "GodotJS, or export for the web, or declare the script as "

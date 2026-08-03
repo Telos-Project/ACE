@@ -19,6 +19,8 @@
 
 		--name <title>       the project name; defaults to the document's
 		--no-assets          skip fetching, and leave locations as they are
+		--keep-js            leave JavaScript scripts alone, for a project
+		                     that will run them through a bridge
 		--force              overwrite an output directory that is not empty
 		--timeout <ms>       per asset, default 30000
 
@@ -28,6 +30,8 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const http = require("http");
+
+const { translate, Unsupported } = require("./jsToGd.js");
 
 const RUNTIME = path.join(__dirname, "..", "godot", "addons", "ace");
 
@@ -39,7 +43,7 @@ const parse = (argv) => {
 
 	let options = {
 		document: null, output: null, name: null,
-		assets: true, force: false, timeout: 30000
+		assets: true, force: false, timeout: 30000, translate: true
 	};
 
 	let loose = [];
@@ -49,6 +53,7 @@ const parse = (argv) => {
 		let arg = argv[index];
 
 		if(arg === "--no-assets") options.assets = false;
+		else if(arg === "--keep-js") options.translate = false;
 		else if(arg === "--force") options.force = true;
 		else if(arg === "--name") options.name = argv[++index];
 		else if(arg === "--timeout") options.timeout = Number(argv[++index]);
@@ -265,6 +270,59 @@ const gather = async (document, into, options, log) => {
 
 // -------------------------------------------------------------------- files
 
+
+/* What the exported README says about how its scripts came to be as they are. */
+const scriptNote = (translated) => {
+
+	let done = translated.filter(entry => entry.ok);
+	let refused = translated.filter(entry => !entry.ok);
+
+	let out = [];
+
+	if(done.length > 0) {
+
+		out.push(
+			"Godot has no JavaScript engine on the desktop, so the " +
+			done.length + " script" + (done.length === 1 ? "" : "s") +
+			" this document\nhad in JavaScript " +
+			(done.length === 1 ? "was" : "were") +
+			" translated into GDScript when it was exported.\n" +
+			"Nothing needs installing. The document here is the translated " +
+			"one; the document\nit was built from still says JavaScript, and " +
+			"still runs in a browser.\n\n" +
+			"The translation covers the language the ACE demos are written " +
+			"in and refuses\nanything outside it rather than guessing. What " +
+			"it emits is parsed and scope\nchecked before it is written, so " +
+			"it is known to be a program; that it is the\nsame program is " +
+			"argued for construct by construct in `export/jsToGd.js` and is " +
+			"not\ndemonstrated by running it. If something behaves oddly " +
+			"that file is where to\nlook, and `--keep-js` turns the whole " +
+			"pass off."
+		);
+	}
+
+	if(refused.length > 0) {
+
+		out.push(
+			"### Not translated\n\n" +
+			refused.map(entry => "- `" + entry.where + "` — " + entry.why)
+				.join("\n") +
+			"\n\nThese are still in JavaScript and will not run without a " +
+			"bridge."
+		);
+	}
+
+	out.push(
+		"Where a script is in JavaScript and no bridge is present it reports " +
+		"so in its own\n`state.error` and warns once in the console, rather " +
+		"than failing quietly. A\nbridge means Godot's own " +
+		"`JavaScriptBridge` on a web export, or\n" +
+		"[GodotJS](https://github.com/ialex32x/GodotJS) as a GDExtension."
+	);
+
+	return out.join("\n\n");
+};
+
 const PROJECT = (name, hasXR) => `; Written by ace-godot.
 ;
 ; The game is document.json. This file only says how to open it.
@@ -308,7 +366,7 @@ document_path = "res://document.json"
 manifest_path = "res://assets/manifest.json"
 `;
 
-const README = (name, scripts, missing, hasXR) => `# ${name}
+const README = (name, scripts, missing, hasXR, translated) => `# ${name}
 
 Built from an ACE document by \`ace-godot\`. The game is \`document.json\`;
 everything else is what Godot needs in order to read it.
@@ -329,32 +387,8 @@ whole document and the path of the script within it, and returning either
 nothing or a patch. The contract says nothing about a language, so either will
 do, and both are read from the same \`language\` field.
 
-GDScript runs natively. **JavaScript needs a bridge**, because Godot ships no
-JavaScript engine on desktop. Any of these will serve:
-
-- Export for the web, where Godot's own \`JavaScriptBridge\` is present already.
-- Install [GodotJS](https://github.com/ialex32x/GodotJS) as a GDExtension.
-- Rewrite the scripts in GDScript by setting \`"language": "gdscript"\` in each
-  script component's data. The arguments and the return value are the same, so
-  only the body changes.
-
-Where a JavaScript script runs without a bridge, it reports so in its own
-\`state.error\` rather than failing quietly, and the rest of the document
-carries on.
-
-${hasXR ? `## Immersive documents
-
-This document asks for a session, so OpenXR is enabled in the project. Starting
-it on a machine with no headset attached prints
-
-	Failed to create XR instance
-	OpenXR was requested but failed to start.
-
-and then carries on in a window, which is the intended behaviour rather than a
-fault: the document is the same either way, and the runtime only takes up a
-session if one is offered.
-
-` : ""}## Assets
+${scriptNote(translated)}
+## Assets
 
 Everything the document referred to was fetched into \`assets/\`, and
 \`assets/manifest.json\` maps the location the document names to the file that
@@ -370,6 +404,64 @@ The document will report these at runtime as a source that failed.
 ` : ""}`;
 
 // --------------------------------------------------------------------- main
+
+/*
+
+	Every JavaScript script in the document, translated into GDScript in place.
+	The document that is written out is the translated one; the original is
+	untouched on disk.
+
+	Anything the translator does not understand is left in JavaScript and
+	reported, so that a project is never quietly half translated: what did not
+	come across is named, and a bridge will still run it.
+
+*/
+const translateScripts = (node, report, path_) => {
+
+	path_ = path_ != null ? path_ : [];
+
+	if(node == null || typeof node !== "object")
+		return;
+
+	if(Array.isArray(node)) {
+
+		node.forEach((entry, index) =>
+			translateScripts(entry, report, path_.concat([String(index)])));
+
+		return;
+	}
+
+	let tags = node.properties?.tags;
+
+	if(Array.isArray(tags) && tags[0] === "script" && tags.includes(TAG) &&
+		typeof node.content === "string") {
+
+		let language = String(
+			node.properties?.data?.language != null
+				? node.properties.data.language : "js"
+		).toLowerCase();
+
+		if(language === "js" || language === "javascript") {
+
+			try {
+
+				node.content = translate(node.content);
+				node.properties.data.language = "gdscript";
+
+				report.push({ where: path_.join("."), ok: true });
+
+			} catch(error) {
+
+				report.push({
+					where: path_.join("."), ok: false, why: error.message
+				});
+			}
+		}
+	}
+
+	Object.keys(node).forEach(key =>
+		translateScripts(node[key], report, path_.concat([key])));
+};
 
 const scriptCounts = (node, counts) => {
 
@@ -489,11 +581,19 @@ const build = async (options, log) => {
 
 	/*
 
-		The document is written out as it stands. It still names the locations
+		Translated before it is written, if it needs to be. Everything else
+		about the document is left as it stands: it still names the locations
 		it always named, and the manifest is what points them at the copies, so
 		one document runs in both places without being forked.
 
 	*/
+	let translated = [];
+
+	if(options.translate)
+		translateScripts(document, translated);
+
+	let refused = translated.filter(entry => !entry.ok);
+
 	fs.writeFileSync(
 		path.join(options.output, "document.json"),
 		JSON.stringify(document, null, "\t")
@@ -510,7 +610,7 @@ const build = async (options, log) => {
 
 	fs.writeFileSync(
 		path.join(options.output, "README.md"),
-		README(name, scripts, missing, xr)
+		README(name, scripts, missing, xr, translated)
 	);
 
 	fs.writeFileSync(
@@ -527,8 +627,34 @@ const build = async (options, log) => {
 	log("");
 	log("open " + options.output + " in Godot 4.3 or later and press play");
 
-	if(scripts.js > 0)
-		log("note: JavaScript needs a bridge; see the README written out");
+	if(translated.length > 0) {
+
+		log("  translated      " + translated.filter(e => e.ok).length +
+			" JavaScript scripts into GDScript" +
+			(refused.length > 0 ? ", " + refused.length + " refused" : ""));
+	}
+
+	if(refused.length > 0) {
+
+		log("");
+		log("  NOT TRANSLATED");
+
+		refused.forEach(entry =>
+			log("    " + entry.where + "\n      " + entry.why));
+
+		log("");
+		log("  These are left in JavaScript and will not run without a " +
+			"bridge.");
+	}
+
+	if(scripts.js > 0 && !options.translate) {
+
+		log("");
+		log("  NOTE  " + scripts.js + " of this document's scripts are in " +
+			"JavaScript, and Godot has no");
+		log("        JavaScript engine on desktop. Without a bridge they " +
+			"will not run at all.");
+	}
 
 	return { name, manifest, report, scripts, xr, document };
 };

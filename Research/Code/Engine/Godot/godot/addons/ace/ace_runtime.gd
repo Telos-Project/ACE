@@ -669,6 +669,7 @@ func _update() -> void:
 		var instance = instances[id]
 
 		match instance["type"]:
+			"mesh": _ops.bind_material(self, instance, instance["object"])
 			"body": _update_body(instance)
 			"query": _update_query(instance)
 			"audio":
@@ -912,7 +913,7 @@ func _reflect() -> void:
 
 		applied[record["key"]] = signature
 
-		node.visible = data.get("enabled") != false
+		node.visible = _ops.truth(data.get("enabled"), true)
 
 		## The entity carries its own identity, so that a collision can be
 		## attributed however the node has been reparented.

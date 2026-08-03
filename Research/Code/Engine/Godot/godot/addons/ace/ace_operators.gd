@@ -76,6 +76,19 @@ func colour(value, fallback = Color(0, 0, 0, 1)) -> Color:
 	return fallback
 
 
+## A field that reads as a flag is not always a bool. `shadow` is false, or
+## true, or a dictionary of settings which means true, and comparing a
+## dictionary to a bool is not something GDScript will do.
+func truth(value, fallback: bool) -> bool:
+	if value is bool:
+		return value
+
+	if value == null:
+		return fallback
+
+	return true
+
+
 func dimensions(data: Dictionary, fallback = Vector3.ONE) -> Vector3:
 	var size = data.get("size")
 
@@ -242,8 +255,7 @@ func _light(runtime, instance: Dictionary) -> Dictionary:
 	light.light_color = colour(data.get("color"), Color(1, 1, 1))
 	light.light_energy = float(data.get("intensity", 1.0))
 
-	var shadow = data.get("shadow")
-	light.shadow_enabled = shadow != null and shadow != false
+	light.shadow_enabled = truth(data.get("shadow"), false)
 
 	runtime.node_for(instance["entity"]).add_child(light)
 
@@ -473,11 +485,18 @@ func _mesh(runtime, instance: Dictionary) -> Dictionary:
 			ball.radial_segments = segments
 			ball.rings = int(segments / 2.0)
 			made_mesh = ball
-		"plane", "ground":
+		"plane":
+			## Standing up in XY, so its height is the second dimension.
+			var upright = PlaneMesh.new()
+			upright.size = Vector2(size.x, size.y)
+			upright.orientation = PlaneMesh.FACE_Z
+			made_mesh = upright
+		"ground":
+			## Lying flat in XZ, so its depth is the third, or the second
+			## where a document gave only two.
 			var flat = PlaneMesh.new()
 			flat.size = Vector2(size.x, size.z if size.z > 0.0 else size.y)
-			flat.orientation = (PlaneMesh.FACE_Z if shape == "plane"
-				else PlaneMesh.FACE_Y)
+			flat.orientation = PlaneMesh.FACE_Y
 			made_mesh = flat
 		"cylinder":
 			var tube = CylinderMesh.new()
@@ -695,6 +714,40 @@ func _heightmap(runtime, instance: Dictionary) -> Mesh:
 	return made
 
 
+## A mesh wears the material declared beside it. Without this every surface
+## keeps Godot's default, which under no light at all is black — and a document
+## that lights nothing and paints everything unlit renders as an empty screen.
+func bind_material(runtime, instance: Dictionary, object: Dictionary) -> void:
+	var node = object.get("node")
+
+	if node == null:
+		return
+
+	var found = runtime.sibling(instance["entityKey"], "material")
+	var made = null
+
+	if found != null:
+		made = found["object"].get("material")
+
+	if made == null:
+		return
+
+	if object.get("bound") == made:
+		return
+
+	object["bound"] = made
+
+	_paint(node, made)
+
+
+func _paint(node, made) -> void:
+	if node is MeshInstance3D or node is MultiMeshInstance3D:
+		node.material_override = made
+
+	for child in node.get_children():
+		_paint(child, made)
+
+
 func _text(runtime, instance: Dictionary) -> Dictionary:
 	var data: Dictionary = instance["data"]
 	var element: Dictionary = instance["record"]["element"]
@@ -800,7 +853,7 @@ func _body(runtime, instance: Dictionary) -> Dictionary:
 
 	if body is RigidBody3D:
 		body.mass = float(data.get("mass", 1.0))
-		body.can_sleep = data.get("sleep") != false
+		body.can_sleep = truth(data.get("sleep"), true)
 
 		var freeze = data.get("freeze")
 
