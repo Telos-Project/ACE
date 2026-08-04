@@ -364,6 +364,7 @@ const SCENE = `[gd_scene load_steps=2 format=3]
 script = ExtResource("1")
 document_path = "res://document.json"
 manifest_path = "res://assets/manifest.json"
+trace = ""
 `;
 
 const README = (name, scripts, missing, hasXR, translated) => `# ${name}

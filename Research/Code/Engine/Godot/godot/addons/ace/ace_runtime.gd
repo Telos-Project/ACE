@@ -12,6 +12,11 @@ const AceScripts = preload("res://addons/ace/ace_scripts.gd")
 @export var document_path: String = "res://document.json"
 @export var manifest_path: String = "res://assets/manifest.json"
 
+## Set to an entity's path — `avatar`, or `player.head` — to have what the
+## document is being told about it printed twice a second. Two rounds of this
+## port were spent guessing at a value nobody could see; this is cheaper.
+@export var trace: String = ""
+
 var data: Dictionary = {}
 var resolved: Dictionary = {"components": [], "entities": [], "errors": []}
 var instances: Dictionary = {}
@@ -44,6 +49,8 @@ var _xr_interface: XRInterface = null
 var _xr_presenting: bool = false
 var _xr_requested: Dictionary = {}
 var _gesture: bool = false
+var _said: Dictionary = {}
+var _spaces: Dictionary = {}
 var _pressed: Dictionary = {}
 var _released: Dictionary = {}
 var _previous_keys: Dictionary = {}
@@ -133,6 +140,9 @@ func _process(delta: float) -> void:
 			"message": problem["message"]
 		})
 
+	_announce()
+	_trace()
+
 	_pointer["dx"] = 0.0
 	_pointer["dy"] = 0.0
 	_pointer["wheel"] = 0.0
@@ -155,6 +165,70 @@ func _by_distance(a, b) -> bool:
 
 func report(type: String, hook: String, message: String) -> void:
 	errors.append({"type": type, "hook": hook, "message": message})
+
+
+## Everything the frame went wrong with, said once each.
+##
+## The browser adapter has a page to put these on and this has nothing, so
+## until now a document could fail in every component it had and look merely
+## odd. A fault that is not reported is one somebody has to guess at from the
+## outside, which is the most expensive kind there is.
+func _trace() -> void:
+	if trace == "" or frame % 30 != 0:
+		return
+
+	var wanted = _doc.path_key(Array(trace.split(".")))
+
+	for record in resolved["entities"]:
+		if record["key"] != wanted:
+			continue
+
+		var held = state.get(_doc.identity(record))
+		var body = bodies.get(record["key"])
+
+		print("[ace ", trace, "] state ", held,
+			"  velocity ", body.linear_velocity if body is RigidBody3D else "-",
+			"  data ", record["data"])
+
+	for record in resolved["components"]:
+		if record["entityKey"] != wanted:
+			continue
+
+		print("  [ace ", ".".join(record["path"]), "] ", record["type"],
+			" state ", state.get(_doc.identity(record)))
+
+
+func _announce() -> void:
+	for problem in errors:
+		var line = ("ACE: " + str(problem["type"]) + "." + str(problem["hook"])
+			+ ": " + str(problem["message"]))
+
+		if _said.has(line):
+			continue
+
+		_said[line] = true
+
+		push_warning(line)
+
+	## A script that fails says so in its own state, where nothing reads it.
+	for record in resolved["components"]:
+		if record["type"] != "script" or record["reserved"] == true:
+			continue
+
+		var held = state.get(_doc.identity(record))
+
+		if not (held is Dictionary) or held.get("error") == null:
+			continue
+
+		var failure = ("ACE: the script at " + ".".join(record["path"])
+			+ " failed: " + str(held["error"]))
+
+		if _said.has(failure):
+			continue
+
+		_said[failure] = true
+
+		push_error(failure)
 
 
 # ------------------------------------------------------------------- assets
@@ -193,15 +267,75 @@ func load_asset(source: String) -> Variant:
 
 	var path = resolve_asset(source)
 
-	if path == "" or not ResourceLoader.exists(path):
+	## Said out loud. A model or a texture that quietly fails to load leaves a
+	## scene that looks wrong for no stated reason, which is the hardest kind
+	## of fault to work back from.
+	if path == "":
 		cache[source] = null
+
+		push_warning("ACE: nothing was fetched for " + source
+			+ " — the export could not reach it, so it is not in assets/")
+
 		return null
 
-	var found = ResourceLoader.load(path)
+	## Read from the file rather than through the import pipeline. Godot only
+	## imports what was on disk when the project was last opened in the editor,
+	## and a project that has just been written has not been opened at all, so
+	## everything the exporter fetched would be missing on the first run.
+	var found = _read(path)
+
+	if found == null and ResourceLoader.exists(path):
+		found = ResourceLoader.load(path)
+
+	if found == null:
+		push_warning("ACE: could not read " + path + ", fetched for " + source
+			+ ". The format may not be one Godot reads.")
 
 	cache[source] = found
 
 	return found
+
+
+func _read(path: String) -> Variant:
+	if not FileAccess.file_exists(path):
+		return null
+
+	match path.get_extension().to_lower():
+
+		"glb", "gltf":
+			var document = GLTFDocument.new()
+			var held = GLTFState.new()
+
+			if document.append_from_file(path, held) != OK:
+				return null
+
+			## Kept as a template and copied wherever it is used, since one
+			## location may be named by several meshes.
+			return document.generate_scene(held)
+
+		"png", "jpg", "jpeg", "webp", "bmp", "tga", "svg":
+			var image = Image.new()
+
+			if image.load(path) != OK:
+				return null
+
+			return ImageTexture.create_from_image(image)
+
+		"mp3":
+			var file = FileAccess.open(path, FileAccess.READ)
+
+			if file == null:
+				return null
+
+			var sound = AudioStreamMP3.new()
+			sound.data = file.get_buffer(file.get_length())
+
+			return sound
+
+		"ogg":
+			return AudioStreamOggVorbis.load_from_file(path)
+
+	return null
 
 
 func load_image(source: String) -> Image:
@@ -211,6 +345,19 @@ func load_image(source: String) -> Image:
 		return found.get_image()
 
 	return null
+
+
+## True once every texture the document declares has been built, so that
+## something waiting on one knows when to stop waiting.
+func textures_settled() -> bool:
+	for record in resolved["components"]:
+		if record["type"] != "texture":
+			continue
+
+		if not instances.has(_doc.identity(record)):
+			return false
+
+	return true
 
 
 func texture_named(reference) -> Texture2D:
@@ -280,6 +427,63 @@ func node_for(path: Array) -> Node3D:
 	return made
 
 
+## Which transform an entity's own is measured against.
+##
+## The default is the package it sits in, and a document says otherwise when it
+## wants something to ride the view rather than stand in the world: a readout
+## that hangs in front of the eyes belongs to the camera, wherever the camera
+## has got to. Without this such a thing sits at the origin of the world, far
+## away and facing nowhere, which is exactly how it looks.
+func _rehome(record: Dictionary, node: Node3D, data: Dictionary) -> void:
+	var wanted = str(data.get("space", "parent"))
+
+	if _spaces.get(record["key"]) == wanted:
+		return
+
+	var host = null
+
+	if wanted == "camera" or wanted == "screen":
+		host = _view_node()
+
+	elif wanted == "world":
+		host = self
+
+	elif wanted == "parent":
+		host = (node_for(record["path"].slice(0, record["path"].size() - 1))
+			if record["path"].size() > 1 else self)
+
+	if host == null:
+		## The camera may not be built yet; ask again next frame.
+		return
+
+	_spaces[record["key"]] = wanted
+
+	if node.get_parent() == host:
+		return
+
+	if node.get_parent() != null:
+		node.get_parent().remove_child(node)
+
+	host.add_child(node)
+
+
+## The entity the active camera belongs to, which is what a camera space is
+## measured against: the camera itself carries no transform of the document's.
+func _view_node() -> Node3D:
+	for id in instances.keys():
+		var instance = instances[id]
+
+		if instance["type"] != "camera":
+			continue
+
+		var camera = instance["object"].get("camera")
+
+		if camera != null and camera.current:
+			return nodes.get(instance["entityKey"])
+
+	return null
+
+
 func _place(node: Node3D, data: Dictionary) -> void:
 	if data.get("position") is Array:
 		node.position = _ops.vector(data["position"])
@@ -322,7 +526,17 @@ func body_for(entity_key: String, body_data = null) -> Node3D:
 
 	made.name = "body"
 
-	parent.add_child(made)
+	if made is RigidBody3D:
+		## A simulated body stands in the world rather than under the entity it
+		## belongs to. Hung beneath it, the solver would move the body while the
+		## entity stayed where it was put, and the document would be told its
+		## subject had not moved: a scene that cannot be walked at all. The
+		## entity follows the body instead, in _reflect.
+		add_child(made)
+		made.global_transform = parent.global_transform
+
+	else:
+		parent.add_child(made)
 
 	bodies[entity_key] = made
 
@@ -630,15 +844,7 @@ func _change(instance: Dictionary, _previous: Dictionary) -> void:
 				label.modulate = _ops.colour(
 					instance["data"].get("color"), Color(1, 1, 1, 1))
 		"animation":
-			var player: AnimationPlayer = instance["object"].get("player")
-			var clip = instance["data"].get("clip")
-
-			if player != null and clip != null and player.has_animation(str(clip)):
-				if instance["object"].get("clip") != clip:
-					player.play(str(clip))
-					instance["object"]["clip"] = clip
-
-				player.speed_scale = float(instance["data"].get("speed", 1.0))
+			_ops.apply_clip(self, instance, instance["object"])
 		"mesh":
 			## Instance lists change constantly in a tiled scene; the rest is a
 			## rebuild.
@@ -669,6 +875,7 @@ func _update() -> void:
 		var instance = instances[id]
 
 		match instance["type"]:
+			"world": _ops.bind_sky(self, instance, instance["object"])
 			"mesh": _ops.bind_material(self, instance, instance["object"])
 			"body": _update_body(instance)
 			"query": _update_query(instance)
@@ -682,7 +889,11 @@ func _update() -> void:
 				var motion: AnimationPlayer = instance["object"].get("player")
 
 				if motion == null:
+					## A model that loaded after the component was built.
 					instance["object"]["player"] = _rebind(instance)
+
+					_ops.apply_clip(self, instance, instance["object"])
+
 					continue
 
 				set_state(instance["record"], {
@@ -719,13 +930,41 @@ func _update_body(instance: Dictionary) -> void:
 		"grounded": false
 	})
 
-	## Velocity is a standing instruction, reapplied every frame, and a null
-	## component is left to the simulation.
-	var asked = instance["data"].get("velocity")
+	## The command itself is applied on the simulation's own clock, in
+	## _physics_process, and not here. See the note there.
 
-	if asked is Array:
+
+## A standing instruction to the simulation belongs on the simulation's clock.
+##
+## Writing a velocity from the drawing frame sets the body's state, and a state
+## written between one step and the next lands at the start of the following
+## one — on top of the velocity that step had just integrated. Reading the
+## vertical and handing it straight back therefore undoes exactly the gravity
+## that had been applied to it, and a body told once to rise rises for ever at
+## the speed it started with. Read in the drawing frame, applied here.
+func _physics_process(_delta: float) -> void:
+	if data.is_empty():
+		return
+
+	for id in instances.keys():
+		var instance = instances[id]
+
+		if instance["type"] != "body":
+			continue
+
+		var body = bodies.get(instance["entityKey"])
+
+		if not (body is RigidBody3D):
+			continue
+
+		var asked = instance["data"].get("velocity")
+
+		if not (asked is Array):
+			continue
+
 		var live = body.linear_velocity
 
+		## A component given as null is left to the simulation.
 		body.linear_velocity = Vector3(
 			float(asked[0]) if asked.size() > 0 and asked[0] != null else live.x,
 			float(asked[1]) if asked.size() > 1 and asked[1] != null else live.y,
@@ -775,6 +1014,11 @@ func _update_query(instance: Dictionary) -> void:
 		params.transform = Transform3D(Basis(), origin)
 		params.collide_with_areas = true
 
+		var mine = bodies.get(instance["entityKey"])
+
+		if mine != null:
+			params.exclude = [mine.get_rid()]
+
 		for result in space.intersect_shape(params, 32):
 			var found = _describe_collision(result.get("collider"), origin,
 				wanted)
@@ -792,6 +1036,15 @@ func _update_query(instance: Dictionary) -> void:
 		)
 
 		beam.collide_with_areas = true
+		beam.collide_with_bodies = true
+
+		## A probe cast from within a subject must not answer with the subject.
+		## A ground probe that finds the feet it was cast from reports no
+		## ground at all once the answer is filtered by tag.
+		var own = bodies.get(instance["entityKey"])
+
+		if own != null:
+			beam.exclude = [own.get_rid()]
 
 		var result = space.intersect_ray(beam)
 
@@ -898,16 +1151,26 @@ func _reflect() -> void:
 		var node = node_for(record["path"])
 		var data: Dictionary = record["data"]
 
-		var driven = bodies.get(record["key"]) is RigidBody3D and physics_on
+		_rehome(record, node, data)
+
+		var body = bodies.get(record["key"])
+		var driven = body is RigidBody3D and physics_on
+
 		var signature = JSON.stringify([
 			data.get("position"), data.get("rotation"), data.get("scale")
 		])
 
 		if driven:
-			## A simulated entity owns its own pose; an authored transform is a
-			## teleport, applied only when it changes.
+			## A simulated entity owns its own pose. An authored transform is a
+			## teleport, taken only when it changes and carried to the body;
+			## every other frame the entity follows what the solver did.
 			if applied.get(record["key"]) != signature:
 				_place(node, data)
+				body.global_transform = node.global_transform
+
+			else:
+				node.global_transform = body.global_transform
+
 		else:
 			_place(node, data)
 
@@ -945,6 +1208,7 @@ func _reflect() -> void:
 		nodes.erase(key)
 		bodies.erase(key)
 		applied.erase(key)
+		_spaces.erase(key)
 		clear_state(key)
 
 

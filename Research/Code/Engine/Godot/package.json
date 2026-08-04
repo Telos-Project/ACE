@@ -1,0 +1,8 @@
+{
+	"name": "telos-ace-godot",
+	"version": "1.0.0",
+	"main": "export/aceGodot.js",
+	"dependencies": {
+		"acorn": "^8.12.0"
+	}
+}

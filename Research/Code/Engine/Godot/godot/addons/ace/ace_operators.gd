@@ -126,7 +126,13 @@ func _world(runtime, instance: Dictionary) -> Dictionary:
 
 	var background = data.get("background")
 
-	if background is Dictionary or background == null:
+	if background is Dictionary:
+		## A sky is bound later: the world is built before anything else, and
+		## the texture it names does not exist yet.
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = colour(data.get("ambient"), Color(0, 0, 0, 1))
+
+	elif background == null:
 		env.background_mode = Environment.BG_COLOR
 		env.background_color = Color(0, 0, 0, 1)
 	else:
@@ -196,6 +202,49 @@ func _world(runtime, instance: Dictionary) -> Dictionary:
 	})
 
 	return {"environment": holder}
+
+
+## A background naming a texture is a sky, and Godot wants one image wrapped
+## around the horizon for it. A document that named six faces of a cube, or a
+## format Godot cannot read, keeps the ambient colour and is told why, rather
+## than being given a black screen with nothing said.
+func bind_sky(runtime, instance: Dictionary, object: Dictionary) -> void:
+	var background = instance["data"].get("background")
+
+	if not (background is Dictionary) or object.get("sky_bound") == true:
+		return
+
+	if object.get("environment") == null:
+		return
+
+	var texture = runtime.texture_named(background.get("texture"))
+
+	if texture == null:
+		## Only give up once every texture in the document has had its turn.
+		if not runtime.textures_settled():
+			return
+
+		object["sky_bound"] = true
+
+		runtime.report("world", "background",
+			"the background names a texture that could not be made into a "
+			+ "sky. Godot wraps one image around the horizon, so a cube of "
+			+ "six faces is not one, and .env is not a format it reads")
+
+		return
+
+	var painted = PanoramaSkyMaterial.new()
+	painted.panorama = texture
+
+	var sky = Sky.new()
+	sky.sky_material = painted
+
+	var env = object["environment"].environment
+
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+
+	object["sky_bound"] = true
 
 
 func _camera(runtime, instance: Dictionary) -> Dictionary:
@@ -425,8 +474,11 @@ func _mesh(runtime, instance: Dictionary) -> Dictionary:
 		for source in runtime.sources_of(element):
 			var scene = runtime.load_asset(source)
 
-			if scene is PackedScene:
-				var loaded = scene.instantiate()
+			## A location read straight from disk arrives already built; one
+			## that came through the import pipeline arrives packed.
+			if scene is PackedScene or scene is Node:
+				var loaded = scene.instantiate() if scene is PackedScene \
+					else scene.duplicate()
 				loaded.name = "mesh"
 				parent.add_child(loaded)
 
@@ -641,6 +693,11 @@ func _heightmap(runtime, instance: Dictionary) -> Mesh:
 
 			if image == null:
 				continue
+
+			## An imported texture may be compressed, and a compressed image
+			## cannot be read a pixel at a time.
+			if image.is_compressed():
+				image.decompress()
 
 			width = image.get_width()
 			depth = image.get_height()
@@ -920,7 +977,54 @@ func _animation(runtime, instance: Dictionary) -> Dictionary:
 	if found != null and found["object"].get("node") != null:
 		player = runtime.find_player(found["object"]["node"])
 
-	return {"player": player, "clip": null}
+	var object = {"player": player, "clip": null}
+
+	apply_clip(runtime, instance, object)
+
+	return object
+
+
+## Which clip is playing, how fast, and whether it comes round again.
+##
+## A clip loops because the document says so, and nothing else. Godot takes
+## that from the Animation resource, and a clip that arrived in a model has
+## whatever the model said — which for glTF is that it plays once. A document
+## asking for a walk it never leaves would get a second of walking and then a
+## figure sliding along in whatever pose it stopped in, since the document only
+## asks again when the clip changes.
+func apply_clip(runtime, instance: Dictionary, object: Dictionary) -> void:
+	var player: AnimationPlayer = object.get("player")
+
+	if player == null:
+		return
+
+	var data: Dictionary = instance["data"]
+	var clip = data.get("clip")
+
+	if clip == null:
+		return
+
+	var name = str(clip)
+
+	if not player.has_animation(name):
+		runtime.report("animation", "clip",
+			"this model has no clip called " + name + "; it has "
+			+ ", ".join(player.get_animation_list()))
+
+		return
+
+	var held = player.get_animation(name)
+
+	if held != null:
+		held.loop_mode = (Animation.LOOP_LINEAR if data.get("loop") != false
+			else Animation.LOOP_NONE)
+
+	player.speed_scale = float(data.get("speed", 1.0))
+
+	if object.get("clip") != clip or not player.is_playing():
+		player.play(name)
+
+		object["clip"] = clip
 
 
 # ------------------------------------------------------------------- destroy

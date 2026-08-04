@@ -703,7 +703,7 @@ class Translator {
 			if(callee.name === "parseInt") return "int(" + args[0] + ")";
 			if(callee.name === "parseFloat") return "float(" + args[0] + ")";
 			if(callee.name === "isNaN") return "is_nan(float(" + args[0] + "))";
-			if(callee.name === "String") return "str(" + args[0] + ")";
+			if(callee.name === "String") return "_js_text(" + args[0] + ")";
 			if(callee.name === "Number") return "float(" + args[0] + ")";
 			if(callee.name === "Boolean") return "_js_truthy(" + args[0] + ")";
 
@@ -771,7 +771,7 @@ class Translator {
 				+ ", " + (args[1] != null ? args[1] : "null") + ")";
 			case "concat": return "_js_concat(" + object + ", " + args[0] + ")";
 			case "toFixed": return "_js_fixed(" + object + ", " + (args[0] || "0") + ")";
-			case "toString": return "str(" + object + ")";
+			case "toString": return "_js_text(" + object + ")";
 			case "toLowerCase": return "str(" + object + ").to_lower()";
 			case "toUpperCase": return "str(" + object + ").to_upper()";
 			case "map": return "_js_map(" + object + ", " + args[0] + ")";
