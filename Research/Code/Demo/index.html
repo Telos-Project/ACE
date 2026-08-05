@@ -26,5 +26,34 @@
 			});
 
 		</script>
+
+		<!-- FOR AI ENHANCED VISUALS
+
+		<script type="module"> import { createDecartClient, models } from "https://esm.sh/@decartai/sdk"; window.decartai = { createDecartClient, models }; </script>
+		<script src="ace-stylize.js"></script>
+
+		<script>
+			
+			let inverval = setInterval(() => {
+
+				if(document.querySelector("canvas") == null)
+					return;
+
+				AceStylize.attach(document.querySelector("canvas"), {
+					backend: "lucy", // "lucy" | "streamdiffusion" | "off" (default)
+					apiKey: "YOUR_API_KEY", // FOR DECART LUCY API
+					endpoint: null, // FOR LOCAL STREAM DIFFUSION MODEL
+					prompt: null,
+					panel: true,
+					autoStart: false
+				});
+
+				clearInterval(inverval);
+			});
+			
+		</script>
+
+		-->
+
 	</body>
 </html>
