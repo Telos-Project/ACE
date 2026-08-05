@@ -1,0 +1,17 @@
+# Install torch FIRST, separately, with the wheel for your own GPU driver —
+# see stylize/README.md. This file assumes that already worked and only
+# covers what StreamDiffusion itself needs on top of it.
+
+diffusers>=0.27
+transformers>=4.38
+accelerate>=0.28
+websockets>=12.0
+Pillow>=10.0
+
+# StreamDiffusion is not on PyPI under a stable name; installed from source.
+# pip -r cannot do this reliably across platforms, so it is a separate step
+# in the README rather than a line here:
+#   pip install git+https://github.com/cumulo-autumn/StreamDiffusion.git
+
+# Optional, meaningfully faster if it installs cleanly for your CUDA version:
+# xformers

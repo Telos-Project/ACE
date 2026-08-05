@@ -1,0 +1,16 @@
+{
+	"mode": "sdxl-turbo",
+	"t_index_fractions": [
+		0.68,
+		0.78,
+		0.88
+	],
+	"width": 512,
+	"height": 512,
+	"guidance_scale": 1.0,
+	"seed": 2,
+	"host": "localhost",
+	"port": 8189,
+	"device": "cuda",
+	"dtype": "float16"
+}
