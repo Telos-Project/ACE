@@ -118,13 +118,50 @@
 
 			/*
 
-				captureStream reads whatever the canvas has drawn each time a
-				new frame is requested; nothing else on the page changes. The
-				engine already sets preserveDrawingBuffer, which this depends
-				on to read a WebGL canvas at all.
+				Decart's own examples constrain the captured stream to the
+				model's own width and height, not whatever the source happens
+				to be — captureStream takes no such constraint itself, so an
+				intermediate canvas is drawn at exactly that size instead,
+				the same technique the streamdiffusion backend already uses
+				to control what it sends. Skipping this leaves the model
+				fed a stream at some other aspect ratio, and whatever it does
+				to reconcile that on its own end is not something this can
+				predict or match — which is the likeliest reason a returned
+				stream came back a different shape than the box it was shown
+				in. The relay canvas removes the mismatch by construction:
+				what is sent, and so what should come back, is always exactly
+				the model's own resolution.
+
+				A source whose own aspect ratio differs from the model's will
+				be stretched non-uniformly into that resolution rather than
+				cropped — a mild distortion of proportions, not a gap. That is
+				a real tradeoff and the better of the two available; a gap
+				breaks the illusion this exists to create, a stretch does not.
 
 			*/
-			const stream = canvas.captureStream(config.fps);
+			const width = model.width || canvas.width;
+			const height = model.height || canvas.height;
+
+			const relay = document.createElement("canvas");
+
+			relay.width = width;
+			relay.height = height;
+
+			const drawn = relay.getContext("2d");
+			let relaying = true;
+
+			const feed = () => {
+
+				if(!relaying) return;
+
+				drawn.drawImage(canvas, 0, 0, width, height);
+
+				requestAnimationFrame(feed);
+			};
+
+			feed();
+
+			const stream = relay.captureStream(config.fps);
 
 			const client = createDecartClient({ apiKey: config.apiKey });
 
@@ -141,11 +178,16 @@
 				}
 			});
 
-			log("lucy: connected, model", config.model);
+			log("lucy: connected, model", config.model,
+				"— relay", width + "x" + height);
 
 			return {
 
-				disconnect: () => realtime.disconnect(),
+				disconnect: () => {
+
+					relaying = false;
+					realtime.disconnect();
+				},
 
 				setPrompt: (text) => {
 
@@ -172,14 +214,23 @@
 				let sending = false;
 				let closed = false;
 
+				/*
+
+					output is already a canvas here — start() made it one for
+					this backend — and it already carries the positioning and
+					pointer-events: none that keep it from swallowing input.
+					A second canvas swapped in over it would carry neither, so
+					this draws into output's own context directly rather than
+					replacing it with one.
+
+					grab is a separate, offscreen canvas, used only to read
+					pixels off the game canvas before they are sent; it is
+					never attached to the page.
+
+				*/
 				const grab = document.createElement("canvas");
 				const context = grab.getContext("2d");
-
-				const drawing = document.createElement("canvas");
-				const drawn = drawing.getContext("2d");
-
-				output.replaceWith(drawing);
-				drawing.id = output.id;
+				const drawn = output.getContext("2d");
 
 				socket.binaryType = "arraybuffer";
 
@@ -230,7 +281,6 @@
 							closed = true;
 							clearInterval(timer);
 							socket.close();
-							drawing.replaceWith(output);
 						},
 
 						setPrompt: (text) => {
@@ -251,8 +301,8 @@
 
 					image.onload = () => {
 
-						drawing.width = image.width;
-						drawing.height = image.height;
+						output.width = image.width;
+						output.height = image.height;
 
 						drawn.drawImage(image, 0, 0);
 
@@ -427,16 +477,121 @@
 			state.output.muted = true;
 			state.output.playsInline = true;
 
+			/*
+
+				pointer-events is what matters here. ACE binds its own click
+				and keydown listeners to the canvas itself — that is what
+				requests pointer lock and what mouse-look depends on — and an
+				opaque overlay stacked on top of it intercepts those events
+				before they ever reach the canvas underneath. The overlay only
+				has to be seen; it must never be able to receive input, or
+				the scene it is a picture of goes uncontrollable the moment it
+				connects.
+
+				It is also inserted as a sibling of the canvas, not a child,
+				so what needs to be a positioned containing block for its
+				absolute placement is their shared parent — not the canvas,
+				which positioning it would do nothing for.
+
+			*/
+			/*
+
+				display: block on both sides of this relationship, not just
+				the overlay. A <canvas> or <video> defaults to display:
+				inline, like an <img>, and an inline replaced element can
+				carry a few pixels of baseline gap along its bottom edge that
+				block-level sizing does not — a classic, well known source of
+				a mismatch between two elements that are otherwise sized
+				identically. The overlay does not need this on its own
+				account, since being absolutely positioned already removes it
+				from inline flow either way, but the canvas underneath it —
+				sized only by width/height:100% in the markup ACE itself
+				writes, with no explicit display — does. Setting it here
+				rather than touching that markup keeps this file the only
+				thing that has to know stylize is involved at all.
+
+			*/
+			canvas.style.display = "block";
+
 			state.output.style.cssText = styleOf({
-				position: "absolute", inset: "0",
-				width: "100%", height: "100%"
+				position: "absolute",
+				top: "0", right: "0", bottom: "0", left: "0",
+				width: "100%", height: "100%", display: "block",
+				"pointer-events": "none"
 			});
 
-			canvas.style.position = canvas.style.position || "relative";
-			canvas.parentNode.insertBefore(state.output, canvas.nextSibling);
+			/*
+
+				Every ACE demo positions its stage with a stylesheet rule
+				(`#stage { position: absolute; inset: 0; }`), not an inline
+				style, and canvas.style only ever reads the inline kind — it
+				comes back empty for every one of them. Checking it that way
+				meant this always "found" nothing and always forced an inline
+				position: relative onto the stage, which has higher
+				specificity than the stylesheet and silently overrides the
+				absolute positioning that was making it fill the screen.
+				getComputedStyle sees what the page actually resolved to, and
+				a parent that is already positioned — absolute, relative,
+				fixed, or sticky — is left alone.
+
+			*/
+			let holder = canvas.parentNode;
+
+			if(global.getComputedStyle(holder).position === "static")
+				holder.style.position = "relative";
+
+			holder.insertBefore(state.output, canvas.nextSibling);
 		}
 
-		return backend.connect(canvas, config, state.output);
+		/*
+
+			The overlay is built once and reused across reconnects, so it has
+			to be shown again here — a second connect after a disconnect
+			would otherwise find it still hidden from the last one. Shown or
+			hidden is the whole difference between "displaying a picture of
+			the canvas" and "blocking the canvas," so disconnecting a backend
+			has to hide it, not merely stop feeding it.
+
+		*/
+		state.output.style.display = "block";
+
+		let handle = await backend.connect(canvas, config, state.output);
+
+		/*
+
+			Said once, after layout has settled, so that if the two still do
+			not agree the numbers are right there rather than needing to be
+			redescribed. Nothing here has been checked against a real browser
+			— there is none available in the environment that wrote this —
+			so this is the fastest way to turn "still off" into an exact
+			pixel difference worth reading.
+
+		*/
+		requestAnimationFrame(() => {
+
+			let seen = canvas.getBoundingClientRect();
+			let shown = state.output.getBoundingClientRect();
+
+			log(
+				"canvas", Math.round(seen.width) + "x" + Math.round(seen.height),
+				"at", Math.round(seen.left) + "," + Math.round(seen.top),
+				"  overlay", Math.round(shown.width) + "x" + Math.round(shown.height),
+				"at", Math.round(shown.left) + "," + Math.round(shown.top)
+			);
+		});
+
+		return {
+
+			setPrompt: handle.setPrompt,
+
+			disconnect: () => {
+
+				handle.disconnect();
+
+				state.output.style.display = "none";
+				canvas.style.display = "";
+			}
+		};
 	};
 
 	// -------------------------------------------------------------- public
