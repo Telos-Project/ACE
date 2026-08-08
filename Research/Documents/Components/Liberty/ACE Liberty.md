@@ -1,15 +1,17 @@
-# ACE Component Standard (Draft)
+# ACE Liberty
 
-Proposed replacement and expansion for README §2.2.
+## 1 - Abstract
 
----
+ACE Liberty is an ACE component protocol.
 
-## 2.2 - Components
+## 2 - Contents
+
+### 2.1 - Conventions
 
 All ACE component utilities shall have the tag "telos-ace", and their primary tag (index 0 of the
 tags list, per APInt §2.2.4) shall determine the type of component they represent.
 
-### 2.2.0 - Components and Content
+#### 2.1.1 - Components and Content
 
 A utility without the tag is not a component and shall be ignored by the engine entirely. It
 remains part of the document, and is therefore readable by scripts, which is how a document carries
@@ -25,7 +27,7 @@ The distinction is the document's own, and needs nothing added to APInt to expre
 marks a utility as the engine's business, and everything untagged is simply data that happens to be
 kept in the same file as the scene that reads it.
 
-### 2.2.1 - Property Layout
+#### 2.1.2 - Property Layout
 
 A component utility's properties field shall contain up to two data objects:
 
@@ -41,7 +43,7 @@ components, and the `meta.data` field of entities. State is excluded from change
 
 Any state field not applicable to the current runtime shall be absent rather than null.
 
-### 2.2.2 - Entities
+### 2.2 - Entities
 
 Per G-Scene, an entity is a package and its components are its utilities. Entity-level properties
 shall be placed in the `meta` field of the entity's properties (APInt §2.2.3), so that they apply
@@ -105,7 +107,7 @@ transform for as long as the body exists. Its `meta.state` therefore reports the
 rather than a pose composed through the package hierarchy, and its descendants continue to follow
 it. Adapters shall not attempt to compose a simulated pose with an authored parent transform.
 
-### 2.2.3 - Conventions
+### 2.3 - Conventions
 
 **Coordinates.** Right-handed, Y-up, -Z forward. Adapters targeting left-handed engines shall
 convert at the boundary.
@@ -142,7 +144,7 @@ reference form shall be wrapped in an object with a single key naming the target
 upon. An adapter which cannot supply a listed capability shall refuse the document rather than
 render it partially.
 
-### 2.2.4 - Consumable Fields
+### 2.4 - Consumable Fields
 
 A small number of data fields express one-shot commands rather than persistent state. These are
 **consumable**: the engine applies the value, then deletes the field from the document. This is the
@@ -160,7 +162,7 @@ sole exception to the authority rule, and the complete set is:
 
 No other field is consumable, and adapters shall not extend this set.
 
-### 2.2.5 - Simulation Stepping
+### 2.5 - Simulation Stepping
 
 Physics shall be advanced on the fixed timestep declared by `world.data.step`, and never on a
 frame's measured duration. A host which reports elapsed time accumulates it and advances by whole
@@ -174,7 +176,7 @@ rewriting the simulation reference must be able to predict the effect of the rew
 
 Adapters shall disable any automatic frame-rate-driven stepping supplied by the underlying engine.
 
-### 2.2.6 - Order of a Frame
+### 2.6 - Order of a Frame
 
 An adapter shall perform the following in order:
 
@@ -190,8 +192,6 @@ An adapter shall perform the following in order:
 
 An entity's transform shall be established when its node is created, not deferred to step 6, since
 components created in step 4 — collision bodies above all — are constructed from it.
-
----
 
 ## 2.3 - Component Reference
 
@@ -810,8 +810,6 @@ the person reads positive on every device, which for WebXR means inverting what 
 reports. Adapters shall report
 unknown inputs under their platform-native identifier rather than omitting them.
 
----
-
 ## 2.4 - Scripts
 
 ### 2.4.1 - Blunt Scripts
@@ -868,8 +866,6 @@ document that frame. A thrown error shall not halt the frame or other scripts.
 function returns an OQL script that executes against the document as a DMDB, and receives the
 result as a dynamic list on its next execution. It is not yet specified here.
 
----
-
 ## 2.5 - The Reserved Entity
 
 The root package shall contain an entity aliased `engine`, created and maintained by the engine.
@@ -887,8 +883,6 @@ under `engine.detected`, each carrying a `mesh` component with manual geometry d
 detected surface, and entity tags identifying its semantic label where the runtime supplies one.
 Detected geometry is thereby readable, queryable, and renderable by the same mechanisms as authored
 geometry, and requires no component of its own.
-
----
 
 ## 2.6 - Example
 

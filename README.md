@@ -9,7 +9,7 @@ format, with associated adapters for certain game engines.
 
 ## 2 - Contents
 
-#### 2.1 - G-Scene
+### 2.1 - G-Scene
 
 G-Scene is an APInt mask which allows "entities" to be used in place of "packages", and
 "components" to be used in place of "utilities".
@@ -32,7 +32,14 @@ string.
 
 The code shall be written as an [OQL Agnostic Script](https://github.com/Telos-Project/OmniQuery?tab=readme-ov-file#21136---agnostic-scripts).
 
-### 2.3 - Dynamic Declarative Simuation Pipeline
+#### 2.2.2 - Component Protocols
+
+A codified standard for a set of ACE components to be supported by ACE adapters is referred to as
+an ACE component protocol.
+
+### 2.3 - Application
+
+#### 2.3.1 - Dynamic Declarative Simuation Pipeline
 
 The Dynamic Declarative Simuation Pipeline (DDSP) is a process where a declarative document, called
 the simulation reference, details the entities present in a simulation, and on each cycle of the
@@ -46,6 +53,32 @@ Simulation update and rendering conventions may themselves be encoded within sim
 Additionally, DDSP may be used to graft world models via scaffolding onto AI processes that are
 powered by otherwise stateless AI models.
 
-#### 2.3.1 - ACE Simulation Documents
+##### 2.3.1.1 - ACE Simulation Documents
 
 ACE may be used for simulation documents.
+
+#### 2.3.2 - Seamless Content
+
+A seamless content consists of a game content built within another game rather than a game engine,
+in such a way that it may be portable between games.
+
+##### 2.3.2.1 - Seamless State
+
+Seamless state consists of seamless content transitioning between host applications and contexts
+while maintaining a persisting state.
+
+The information relevant to seamless state may be represented externally to host applications, and
+may do this using
+[general ontologies](https://github.com/Telos-Project/Bus-Net?tab=readme-ov-file#22---general-ontologies).
+
+##### 2.3.2.2 - Seamless ACE Content
+
+ACE may be used for seamless content.
+
+#### 2.3.3 - Agentic NPCs
+
+Agentic NPCs are bots, and contexts for said bots, engaging with a game through the same interface
+human players use.
+
+Depending on their configuration, they may be programmed to act as though they are another player,
+or to stay in character for a specific role.
