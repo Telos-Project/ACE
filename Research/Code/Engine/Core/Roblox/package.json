@@ -1,0 +1,8 @@
+{
+	"name": "ace-roblox",
+	"version": "1.0.0",
+	"main": "export/aceRoblox.js",
+	"dependencies": {
+		"acorn": "^8.18.0"
+	}
+}

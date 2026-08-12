@@ -42,6 +42,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const jsToLuau = require("./jsToLuau.js");
 const https = require("https");
 const http = require("http");
 
@@ -533,14 +534,44 @@ const build = async (options, log) => {
 
 		let language = String(node.properties?.data?.language || "").toLowerCase();
 
-		if(language !== "" && language !== "lua" && language !== "luau") {
+		let body;
+		let helpers = "";
+
+		if(language === "js" || language === "javascript") {
+
+			try {
+
+				let translated = jsToLuau.translate(node.content);
+
+				body = translated.body.split("\n")
+					.map(line => line === "" ? "" : "\t\t\t" + line).join("\n");
+				helpers = translated.helpers;
+
+			} catch(error) {
+
+				log("  NOTE  " + scriptPath.join(".") + " could not be translated from " +
+					"JavaScript: " + error.message + " — it will fail at runtime with " +
+					"that reported as its error");
+
+				body = "\t\t\terror(" + luauString(
+					"not translated: " + error.message
+				) + ")";
+			}
+
+		} else if(language === "" || language === "lua" || language === "luau") {
+
+			body = node.content.split("\n").map(line => "\t\t\t" + line).join("\n");
+
+		} else {
 
 			log("  NOTE  " + scriptPath.join(".") + " is written in \"" + language +
 				"\", which this exporter does not translate; it will fail at " +
 				"runtime with that reported as its error");
-		}
 
-		let body = node.content.split("\n").map(line => "\t\t\t" + line).join("\n");
+			body = "\t\t\terror(" + luauString(
+				"not translated: unsupported language \"" + language + "\""
+			) + ")";
+		}
 
 		// The body is nested in a function of its own rather than being the
 		// run function's direct statement list. An ACE script normally ends
@@ -551,15 +582,27 @@ const build = async (options, log) => {
 		// forwards that result, or nil if the body never returns at all,
 		// which is what a function that falls off its end already does in
 		// Luau without needing a trailing return nil to say so.
-		let compiled = "--!strict\n\n"
+		// Luau's strict mode is the wrong tool for a JS-translated body: the
+		// helper library is deliberately dynamically typed, the same way
+		// the JavaScript it stands in for is, and strict mode's own
+		// inference has no way to know that _js_get can genuinely return a
+		// string here and a table there on purpose. A hand-written Luau
+		// script gets the real benefit of strict mode; a translated one
+		// gets Luau's default inference instead, which still catches a
+		// real mistake without demanding static consistency from code
+		// whose entire point is not to have any.
+		let strict = (language === "js" || language === "javascript") ? "" : "--!strict\n\n";
+
+		let compiled = strict
 			+ "-- Provided the way JSON.parse/JSON.stringify are implicit in a "
 			+ "browser script and JSON.parse_string/JSON.stringify are implicit "
 			+ "in a Godot one: Roblox's JSON functions live on a service, not as "
 			+ "bare globals, and a script author should not have to know that "
 			+ "just to use the same state/path contract every other adapter gives "
 			+ "them for free.\n"
-			+ "local HttpService = game:GetService(\"HttpService\")\n\n"
-			+ "return {\n\trun = function(state: string, path: string)\n\n"
+			+ "local HttpService = game:GetService(\"HttpService\")\n"
+			+ helpers
+			+ "\nreturn {\n\trun = function(state: string, path: string)\n\n"
 			+ "\t\tlocal function body(state, path)\n"
 			+ body + "\n\t\tend\n\n"
 			+ "\t\treturn body(state, path)\n\tend,\n}\n";

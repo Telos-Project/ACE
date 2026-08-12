@@ -1,0 +1,567 @@
+{
+	"packages": {
+		"world": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"settings": {
+					"properties": {
+						"tags": [
+							"world",
+							"telos-ace"
+						],
+						"data": {
+							"gravity": [
+								0,
+								-196.2,
+								0
+							],
+							"ambient": [
+								0.18,
+								0.19,
+								0.22
+							],
+							"requires": [
+								"audio"
+							]
+						}
+					}
+				}
+			}
+		},
+		"sun": {
+			"properties": {
+				"meta": {
+					"data": {
+						"rotation": [
+							-0.9,
+							0.6,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "directional",
+							"intensity": 2.2
+						}
+					}
+				}
+			}
+		},
+		"sky": {
+			"properties": {
+				"meta": {}
+			},
+			"utilities": {
+				"light": {
+					"properties": {
+						"tags": [
+							"light",
+							"telos-ace"
+						],
+						"data": {
+							"type": "ambient",
+							"color": "#7f93c2",
+							"intensity": 0.5
+						}
+					}
+				}
+			}
+		},
+		"eye": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							12,
+							24
+						]
+					}
+				}
+			},
+			"utilities": {
+				"camera": {
+					"properties": {
+						"tags": [
+							"camera",
+							"telos-ace"
+						],
+						"data": {
+							"fov": 1.0,
+							"near": 0.1,
+							"far": 900,
+							"target": [
+								0,
+								2,
+								0
+							]
+						}
+					}
+				}
+			}
+		},
+		"ground": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							-1,
+							0
+						]
+					},
+					"tags": [
+						"ground"
+					]
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "box",
+							"size": [
+								80,
+								2,
+								80
+							]
+						}
+					}
+				},
+				"paint": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#3a4250"
+						}
+					}
+				}
+			}
+		},
+		"plaza": {
+			"properties": {
+				"meta": {}
+			},
+			"packages": {
+				"pillar0": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0.0,
+									2.5,
+									14.0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.6,
+										5,
+										1.6
+									]
+								}
+							}
+						},
+						"paint": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#8a8fa0"
+								}
+							}
+						}
+					}
+				},
+				"pillar1": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									12.12,
+									2.5,
+									7.0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.6,
+										5,
+										1.6
+									]
+								}
+							}
+						},
+						"paint": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#8a8fa0"
+								}
+							}
+						}
+					}
+				},
+				"pillar2": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									12.12,
+									2.5,
+									-7.0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.6,
+										5,
+										1.6
+									]
+								}
+							}
+						},
+						"paint": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#8a8fa0"
+								}
+							}
+						}
+					}
+				},
+				"pillar3": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0.0,
+									2.5,
+									-14.0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.6,
+										5,
+										1.6
+									]
+								}
+							}
+						},
+						"paint": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#8a8fa0"
+								}
+							}
+						}
+					}
+				},
+				"pillar4": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-12.12,
+									2.5,
+									-7.0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.6,
+										5,
+										1.6
+									]
+								}
+							}
+						},
+						"paint": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#8a8fa0"
+								}
+							}
+						}
+					}
+				},
+				"pillar5": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									-12.12,
+									2.5,
+									7.0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										1.6,
+										5,
+										1.6
+									]
+								}
+							}
+						},
+						"paint": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#8a8fa0"
+								}
+							}
+						}
+					}
+				},
+				"dais": {
+					"properties": {
+						"meta": {
+							"data": {
+								"position": [
+									0,
+									1,
+									0
+								]
+							},
+							"tags": [
+								"ground"
+							]
+						}
+					},
+					"utilities": {
+						"mesh": {
+							"properties": {
+								"tags": [
+									"mesh",
+									"telos-ace"
+								],
+								"data": {
+									"shape": "box",
+									"size": [
+										6,
+										2,
+										6
+									]
+								}
+							}
+						},
+						"paint": {
+							"properties": {
+								"tags": [
+									"material",
+									"telos-ace"
+								],
+								"data": {
+									"color": "#6f7686"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"marker": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							3,
+							0
+						],
+						"turn": 0
+					}
+				}
+			},
+			"utilities": {
+				"mesh": {
+					"properties": {
+						"tags": [
+							"mesh",
+							"telos-ace"
+						],
+						"data": {
+							"shape": "cylinder",
+							"size": [
+								3,
+								0.4,
+								3
+							]
+						}
+					}
+				},
+				"paint": {
+					"properties": {
+						"tags": [
+							"material",
+							"telos-ace"
+						],
+						"data": {
+							"color": "#e0b060"
+						}
+					}
+				},
+				"spin": {
+					"properties": {
+						"tags": [
+							"script",
+							"telos-ace"
+						],
+						"data": {
+							"language": "js",
+							"output": "patch"
+						}
+					},
+					"content": "const s = JSON.parse(state);\nconst g = s.packages.marker.properties.meta.data;\nconst turn = (g.turn || 0) + 0.9 / 60;\n\nreturn JSON.stringify({\n\tpackages: {\n\t\tmarker: {\n\t\t\tproperties: {\n\t\t\t\tmeta: {\n\t\t\t\t\tdata: {\n\t\t\t\t\t\tturn: turn,\n\t\t\t\t\t\trotation: [0, turn, 0],\n\t\t\t\t\t},\n\t\t\t\t},\n\t\t\t},\n\t\t},\n\t},\n});"
+				}
+			}
+		},
+		"sign": {
+			"properties": {
+				"meta": {
+					"data": {
+						"position": [
+							0,
+							5.5,
+							0
+						]
+					}
+				}
+			},
+			"utilities": {
+				"label": {
+					"properties": {
+						"tags": [
+							"text",
+							"telos-ace"
+						],
+						"data": {
+							"size": 0.5,
+							"color": "#eef2fa",
+							"align": "center",
+							"width": 6
+						}
+					},
+					"content": "a still plaza, turning marker aside"
+				}
+			}
+		}
+	}
+}
