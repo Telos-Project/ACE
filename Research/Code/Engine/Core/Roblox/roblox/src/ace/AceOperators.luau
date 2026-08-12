@@ -559,7 +559,17 @@ function AceOperators.mesh(runtime: Runtime, instance: any): { [string]: any }
 
 		part = Instance.new("Part");
 		(part :: Part).Shape = Enum.PartType.Cylinder
-		part.Size = size
+
+		-- Roblox's own current docs are explicit that its cylinder is
+		-- oriented along the local X axis, contradicting an older
+		-- community wiki that claims Y — checked directly rather than
+		-- assumed, since Babylon and Godot both treat Y as a cylinder's
+		-- height and that was the wrong convention to carry over here.
+		-- The size is remapped to Roblox's real axis, and the attribute
+		-- is what a fixed quarter turn needs to survive every later
+		-- reposition — see _place, which is the only place this is read.
+		part.Size = Vector3.new(size.Y, size.X, size.Z)
+		part:SetAttribute("aceBaseRotation", Vector3.new(0, 0, math.rad(90)))
 
 	elseif shape == "plane" or shape == "ground" then
 

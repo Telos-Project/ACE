@@ -312,7 +312,22 @@ function AceRuntime._place(self: Runtime, node: Instance, data: { [string]: any 
 		for _, child in ipairs(model:GetChildren()) do
 
 			if child:IsA("BasePart") then
-				(child :: BasePart).CFrame = target
+
+				-- A shape needing a fixed base orientation — Roblox's
+				-- cylinder, oriented along X rather than the Y every other
+				-- ACE adapter treats as a cylinder's height — carries that
+				-- correction as an attribute on the part itself, since
+				-- this runs on every reposition and the correction has to
+				-- survive all of them, not just the first.
+				local base = (child :: BasePart):GetAttribute("aceBaseRotation")
+
+				local offset = if base ~= nil
+					then CFrame.fromEulerAnglesXYZ(
+						(base :: Vector3).X, (base :: Vector3).Y, (base :: Vector3).Z
+					)
+					else CFrame.identity;
+
+				(child :: BasePart).CFrame = target * offset
 			end
 		end
 	end
