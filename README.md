@@ -67,9 +67,9 @@ in such a way that it may be portable between games.
 Seamless state consists of seamless content transitioning between host applications and contexts
 while maintaining a persisting state.
 
-The information relevant to seamless state may be represented externally to host applications, and
-may do this using
-[general ontologies](https://github.com/Telos-Project/Bus-Net?tab=readme-ov-file#22---general-ontologies).
+The information relevant to seamless state may be represented externally to host applications. Such
+content may be stored in [Orca logs](https://github.com/Telos-Project/Orca), serialized therein in
+various formats, which may use [general ontologies](https://github.com/Telos-Project/Bus-Net?tab=readme-ov-file#22---general-ontologies).
 
 ##### 2.3.2.2 - Seamless ACE Content
 
