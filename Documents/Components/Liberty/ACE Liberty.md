@@ -211,10 +211,13 @@ the passthrough camera shows through wherever the document has drawn nothing. Th
 screen renders on black, so an augmented scene can be tried without a device.
 | horizon | number | 1000 | Skybox radius |
 | ambient | color | [0,0,0] | Ambient light contribution |
-| fog | object | — | `{ color, near, far }` |
+| fog | object | — | `{ color, near, far }` for a linear fog, or `{ color, density }` for an exponential-squared one (a fog with a density is the second) |
 | step | number | 1/60 | Fixed physics timestep; see §2.2.5 |
 | substeps | integer | 1 | Physics solver substeps per step |
 | requires | string[] | [] | Required capabilities: "physics", "xr-vr", "xr-ar", "audio", "hands" |
+| boot | object | — | Read by the host page, not the adapter: `{ title, fonts: [{ family, src, weight }], loading: { title, status, ready, background, color, muted, track, bar, titleFont, bodyFont, minimum, timeout } }`. `fonts` are loaded before the world is made; `loading` is a cover shown until it is made, and when absent the document simply starts. A page shall not impose a cover of its own |
+
+A document with gravity (the default) is simulated by a physics solver that the host supplies; a host page loads one only for a document that asks for gravity, and a document with `gravity: null` needs none.
 
 **state**
 
@@ -249,6 +252,14 @@ Pose comes from the containing entity. A document with no enabled camera renders
 default "local-floor". `xr.teleport`, absent by default, asks for the runtime's own teleportation
 locomotion; a document that moves its own subject shall leave it absent, or the two will contend
 for the same thumbstick.
+
+`xr.scale` is the fraction of the device's own resolution to draw at (1 is the device's choice).
+`xr.near` and `xr.far` replace the camera's clipping planes while presenting: a session writes an
+ordinary depth buffer, so a document that normally draws with a reversed one (§2.3.21, world `reverseDepth`)
+has it put aside for the session, and its precision then depends on a near plane that is not tiny.
+A controller state also carries `ray` (world space) and `local` (the same ray in the frame of the
+entity the view hangs off, which is the frame a camera-space interface is laid out in). While
+presenting, `world.post.finish` is not applied.
 
 Presence of the `xr` field is a request to present this camera in an immersive session; absence
 means no session is requested. Sessions are never started implicitly. Where the runtime cannot
@@ -428,17 +439,22 @@ The string to render is the utility's `content`.
 | font | string \| reference | — | Font location, or reference to a texture for a bitmap font |
 | size | number | 1 | Em height, in meters for world space, in normalized units for screen space |
 | color | color | [1,1,1,1] | |
-| align | string | "left" | "left", "center", "right" |
-| anchor | string | "center" | Nine-point anchor: "top-left" through "bottom-right" |
-| width | number | — | Wrap width; omit to disable wrapping |
+| align | string | "center" | "left", "center", "right": how lines sit in the plane |
+| anchor | string | "center" | Which part of the text sits at the entity, as words: "center", or "top", "bottom", "left", "right" and pairs of them ("top left"). A billboard mirrors the horizontal part |
+| width | number | content length | Width of the plane, in the same units as `size`. The glyphs are sized by `size`, so the plane's width does not stretch them |
+| wrap | boolean | false | Break a long line to fit `width`. A newline always starts a line; the plane grows downward as lines are added |
+| resolution | integer | 128 | Pixels in a line of the text's texture. 64 is plenty for text drawn at screen size |
+| shadow | boolean | true | A soft dark shadow behind the glyphs |
 | leading | number | 1.2 | Line height multiplier |
 | billboard | string | "none" | As per mesh |
+| order | integer | 0 | Draw layer, as for a mesh (section 2.3.21) |
 
 **state**
 
 | Field | Type | Meaning |
 |---|---|---|
 | loaded | boolean | Font has resolved |
+| lines | integer | Lines after wrapping |
 | bounds | object | `{ min, max }` of the laid-out text |
 
 ### 2.3.8 - body
@@ -769,11 +785,12 @@ XR hand — is a controller, and is read identically.
 | index | integer | Distinguishes multiple devices of the same kind |
 | handedness | string | "left", "right", or "none" |
 | digital | string[] | Every input currently on |
-| pressed | string[] | Inputs that turned on this frame |
+| pressed | string[] | Inputs that turned on this frame. Valid for one engine tick only: a script that runs less often than the engine ticks may miss an edge, and should derive edges from `digital` against what it saw last time |
 | released | string[] | Inputs that turned off this frame |
 | analog | object | Input identifier to number |
 | pose | object | `{ position, rotation, linear, angular }` for tracked devices, in world space |
-| ray | object | `{ origin, direction }` — the device's targeting ray, tracked devices only |
+| ray | object | `{ origin, direction }` — the device's targeting ray in world space, tracked devices only |
+| local | object | `{ origin, direction }` — the same ray in the frame of the entity the view hangs off, which is the frame a camera-space interface is laid out in; XR controllers only, while presenting |
 | joints | object[] | `{ name, position, rotation, radius }`, XR hands only |
 
 **Digital identifiers.**
@@ -809,6 +826,231 @@ Analog values are in [-1,1] for axes and [0,1] for triggers and pressure. A stic
 the person reads positive on every device, which for WebXR means inverting what the runtime
 reports. Adapters shall report
 unknown inputs under their platform-native identifier rather than omitting them.
+
+### 2.3.18 - terrain
+
+A landscape too large to be a mesh: a height field read from an image, drawn in chunks that change
+level of detail with the distance of the viewer. Provided by the Babylon adapter's `aceWorld.js`.
+
+Heights, and the material weights that colour the surface, stay in files. Every script is handed the
+serialised document each frame and the reconciler compares every component's data each frame, so a
+document that carried a million samples would spend its frame on them. The component's `source`
+is the height image, a list of locations tried in turn (§2.3). The entity carrying a terrain shall be
+neither rotated nor scaled. It should carry the tag its queries select, usually `ground`, so that
+scripts find the surface with a ray (§2.3.14); every chunk answers as the entity.
+
+Samples are columns along +X and rows along -Z, as for a mesh heightmap (§2.3.4). The image is
+`resolution` samples across, where `resolution` minus one is a whole number of chunks.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| size | vec2 | [1000,1000] | Extent in metres along X and Z, centred on the entity |
+| elevation | vec2 | [0,100] | What the lowest and highest sample mean, in metres |
+| encoding | string | "rg16" | "rg16": red is the high byte and green the low byte of a sixteen bit height. "r8": the red channel alone |
+| chunk | integer | 128 | Cells per chunk edge |
+| lods | object[] | see below | `{ range, step }` bands: the chunk is drawn at every `step`th sample while the viewer is within `range` metres. Default `[{700,1},{1600,2},{3400,4},{1e9,8}]` |
+| layers | object | | `splat`: location of an RGBA image of weights over the whole extent, red rock, green sand, blue snow, alpha dirt, what remains grass. `grass`, `dirt`, `rock`, `sand`, `snow`: each `{ base, normal }` locations of a tiling colour and normal map |
+| tile | number | 6 | Metres per repeat of the fine layers |
+| rockTile | number | 9 | Metres per repeat of the rock layer, which is projected along all three axes so cliffs do not stretch |
+| blend | number | 320 | Distance at which a layer has faded to its average colour |
+| grassTint | color | [1,1,1] | Multiplies the grass layer |
+
+Chunks are lit by the scene's first directional light and first ambient light, and fogged as the scene
+is (§2.3.1). Rock is chosen wherever the slope is steep whatever the splat says, and snow lies only
+where it is not.
+
+A chunk's skirt hangs below each of its edges so that neighbours at different levels never show a gap.
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| loaded | boolean | The height image has been read |
+| chunks | integer | Chunks in the landscape |
+| live | integer | Chunks currently built |
+| queued | integer | Chunks waiting to change level |
+| resolution | vec2 | Samples across and down |
+| error | string | Present only on failure |
+
+### 2.3.19 - scatter
+
+Many copies of a few models, read from a table. Provided by `aceWorld.js`.
+
+`data.table` is a list of locations of a binary file of little-endian 32 bit floats, five to a
+record: x, y, z, yaw about +Y and uniform scale, relative to the entity. The table is divided into
+square chunks of `data.chunk` metres (default 256). While the viewer is within `range` of a chunk,
+the chunk is drawn as one thin instance of each part of a model, and `lods` names the model for
+each distance band, nearest first, so that a forest is a few hundred triangles a tree in the
+distance. A chunk beyond the last range is not drawn at all.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| table | string \| string[] | — | Locations of the instance table |
+| chunk | number | 256 | Chunk size in metres |
+| lods | object[] | — | `{ source, range }` in increasing range; `source` is a list of locations as for a mesh |
+| collide | object | — | Makes the instances solid to overlap queries (§2.3.14). A trunk, `{ radius, height, base }`, as a cylinder in metres at unit scale about each instance's origin, and optionally a `crown`, `{ radius, base, height }`, above it. Scaled with the instance. The entity must carry a tag the query selects |
+
+Scattered instances do not answer ray or pick queries, and answer overlaps only if `collide` is given.
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| loaded | boolean | Table and models have arrived |
+| instances | integer | Records in the table |
+| chunks | integer | Non-empty chunks |
+| live | integer | Instances currently drawn |
+| queued | integer | Chunks waiting to change model |
+
+### 2.3.20 - particles
+
+An emitter at its entity. Emission is a standing state rather than a command, so a burst is made by
+raising `emitting` for a moment, and the component keeps to the data and state split.
+
+`source` is the sprite, a list of locations.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| capacity | integer | 300 | Particles alive at once |
+| emitting | boolean | true | Whether particles are being made |
+| rate | number | 60 | Particles per second while emitting |
+| size | vec2 | [0.5,1.5] | Minimum and maximum size in metres |
+| life | vec2 | [0.5,1.2] | Minimum and maximum life in seconds |
+| speed | vec2 | [1,3] | Minimum and maximum launch speed |
+| radius | number | 0.2 | Half the side of the box particles are born in |
+| spread | number | 1 | Spread of launch directions |
+| direction | vec3 | — | Added to the launch directions |
+| gravity | vec3 | [0,0,0] | |
+| color, color2 | color | | Colour at birth, chosen between the two |
+| fade | color | | Colour at death |
+| blend | string | "add" | "add" or "standard" |
+| timeScale | number | 0.016 | Simulation seconds per frame |
+| local | boolean | false | Particles move with the entity |
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| alive | integer | Particles currently alive |
+
+### 2.3.21 - Extensions to other components
+
+These fields are additions; a document without them behaves as before.
+
+- **world** `fog` may be `{ color, density }`, which is exponential-squared haze, in place of `{ color, near, far }`.
+  A fog colour is a display colour: materials mix fog after the gamma curve. `post` is `{ exposure, contrast, tonemap, vignette }`
+  and grades every material that honours the scene's image processing; `tonemap` is `"aces"` or absent.
+  The background skybox shall not write depth.
+- **light** `ground` is the colour an ambient light gives to surfaces facing down.
+- **text** `font` is the canvas font of the glyphs, default `bold 72px sans-serif`. The texture is sized to the plane the text is drawn on, so a long line is not squashed.
+- **mesh** and **text** `order` (integer, default 0) is the layer of a translucent surface. Everything translucent in the world (the sea, 5; clouds, 8) is below the menus (10 to 20) and the heads-up display (30 to 32). Translucent surfaces are drawn far to near, measured to the middle of each one, which puts a wide panel in front of text that lies across its corner; a higher layer is drawn later, over every lower one, and only the surfaces of one layer are sorted by distance. A heads-up display is a high layer.
+- **world** `post.finish` is `{ bloom: { threshold, weight, kernel, scale }, fxaa, grade: { exposure, saturation, contrast, shadows, highlights, vignette, sharpen } }`: bloom and edge smoothing, then one grading pass (a filmic tone curve in linear light, cool shadows and warm highlights as RGB multipliers, a vignette, a sharpen, and a little grain). It is applied to the active camera, and made again if the camera is replaced.
+- **world** `sky: false` hides the sky (a viewer under the sea), leaving the fog's colour behind everything; `fog`, `post` and `sky` are applied in place when they alone change, so a document may change them every frame.
+- **mesh / text** `order` of 10 or more makes the mesh an *overlay*: it is drawn in a layer of its own after everything else, on a cleared depth buffer, sorted among overlays by `order`. A heads-up display or a menu is an overlay; a wall between it and the viewer does not hide it, so it may be placed far from the camera and scaled up, which keeps the millimetre error of a position far from the world's origin from showing.
+- **world** the sky box is drawn first and writes no depth, so geometry beyond its small box is not replaced by sky. The adapter's engine uses a reversed floating-point depth buffer unless `options.reverseDepth` is false.
+- **material** `region: [u, v, width, height]` shows a window of the picture (v from the bottom); changing it at run time pans and zooms the picture.
+- **light** `on` (boolean, default true) switches the light itself on or off. Switching off an entity that holds a light does not do this: a light's state is not re-read from its parents, so a room's lamps are switched with `on`.
+- **query** a ray straight down at the terrain tests other ground meshes too (a roof, a floor) only when its data says `surfaces: "all"`; every other such ray is answered from the height grid alone, which is much cheaper.
+- **entity** everything under an entity whose `enabled` is false is asleep: it is not drawn, and its transforms are not read again until the entity is switched on. A `terrain` or `scatter` whose entity is switched off lets go of what it built (a scatter) or stops streaming (a terrain), reports nothing pending, and answers no ground or contact queries. One switch therefore removes an island, or a building's interior, from the world's cost.
+- **query** a predicate-filtered pick no longer returns a mesh that is switched off.
+- **query** an `overlap` against a still mesh (not skinned, not drawn as instances) answers for its triangles and not its bounding box: the nearest point of the nearest triangle within the radius, with the normal from that point toward the query and the distance to it. A building is therefore walked round, into and under. The triangles are taken into world space once, sorted into a grid, and sorted again if the mesh moves. Skinned meshes and instanced meshes keep the bounding-box answer.
+- **query** a `ray` aimed straight down at the terrain answers from the height grid, but any other ground-tagged mesh nearer the ray's start (a roof, a floor, a bridge) is tested by its triangles too, and the higher surface wins. Starting the ray just above a head therefore finds the floor under a roof and not the roof.
+- **query** a `ray` aimed straight down at the terrain is answered from the terrain's height grid and not its triangles (the same answer, far cheaper).
+- **mesh** `opacity` (number, default 1) is how much of it can be seen; below 1 it is drawn translucent. Changing only the opacity of a mesh does not rebuild it, so it can be animated every frame.
+- **camera** asking for an immersive session (`xr`) from an origin the runtime does not trust (plain http on anything but the local machine) shall lose the headset and nothing else: the request fails into the context's errors and the camera is created.
+- **animation** clips are found among those of the sibling mesh first, because every copy of a model brings groups with the same names; the scene's groups are consulted only for a mesh that brought none. While a model is loading the animation waits. `autoplay`, when true, plays the selected clip whenever it is bound or changed.
+
+### 2.3.22 - speech
+
+A voice. Speaking is a matter of data and state like everything else: the text is said when `revision`
+changes, cutting off whatever was being said, and an empty text is silence. The adapter uses the host's
+speech synthesis, so which voices exist, and how good they are, belongs to the machine.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| text | string | "" | What to say |
+| revision | integer | 0 | Changing it says `text` again |
+| lang | string | "en" | Language prefix of the voices to choose from |
+| voice | string \| integer | — | Part of a voice's name ("Zira"), or the nth of the voices of the language |
+| pitch, rate, volume | number | 1 | |
+| mute | boolean | false | |
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| supported | boolean | The host can speak |
+| speaking | boolean | A line is being said |
+| voices | integer | Voices the host has (which may arrive after the first frame) |
+
+### 2.3.23 - storage
+
+A value the host keeps between visits. As with speech, writing is a revision: when `revision` changes,
+`value` is stored under `key` (an empty value removes the key). The value that is held is always in
+`state.value`, so a document reads what was kept from state and need hold a written value in its data for
+no longer than it takes to write it. It is a string; what is in it is the document's business.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| key | string | — | The name it is kept under |
+| value | string | "" | What to keep, when `revision` changes |
+| revision | integer | 0 | |
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| available | boolean | The host lets the page keep anything (private windows may not) |
+| value | string | What is held |
+| revision | integer | The revision last written |
+
+### 2.3.24 - water
+
+The sea, seen from both sides: a surface at its entity's height, `size` across, drawn as a grid of `segments` squares (depth is
+interpolated across each triangle, and across one huge quad the error at a shoreline is visible). Above it the colour comes from the
+depth of water over the ground, which the adapter reads from the terrain's own height image: `shallow` over the shoals, `deep`
+beyond, foam where it meets land and rolling in over the shallows, two or three layers of ripples drifting different ways (the finest
+fade with distance), the sky reflected by Fresnel's rule and a glitter of sun. From below, a bright window of sky about as wide as Snell's law
+allows, and beyond it `under`. Both sides take the scene's fog.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| size | vec2 | [40000,40000] | |
+| segments | integer | 300 | Squares along a side |
+| shallow, deep, under | color | | Display-space colours: over shoals, in deep water, and the water as seen from inside |
+| layers | object | | `{ a, b }`: two tileable normal maps |
+| terrain | object | | `{ height, size, elevation, resolution, floor, center }`: the height image, how wide it is, what 0 and 1 mean, its side in samples, the level of the sea floor past its edge, and the world x, z the image is centred on (default 0, 0) |
+| terrain2 | object | | A second image of the same kind (`{ height, size, elevation, resolution, center }`) for a second island; the depth of water is read from whichever covers the point, and from the floor level where neither does |
+
+### 2.3.25 - clouds
+
+Clouds that are somewhere: heaps of soft puffs arranged in three dimensions, so that the viewer can fly round one, over it, or into it.
+A cloud is a flat-bottomed cluster, bigger puffs low, smaller high. Each puff is a billboard shaded as a sphere lit from the sun, its edge eaten
+away by noise, brighter toward the top of its cloud; they are drawn as thin instances of one quad and put in order far to near now and then so that they
+blend correctly. The field is made around the viewer from a hash of where each cell is (always the same, as far as the viewer goes) and drifts with the wind
+as a whole; the far cells are a few big puffs each. A puff the viewer is in or near fades out, so passing through is a thickening of the air.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| altitude | number | 1400 | Height of the bases |
+| thickness | number | 520 | How tall the tallest clouds are |
+| cover | number | 0.5 | Threshold on the cover field: higher is clearer sky |
+| cell | number | 1500 | Metres between clouds, about |
+| range | number | 12500 | How far out clouds are made |
+| wind | vec2 | [6,2.5] | Drift in metres per second |
+| seed | integer | 7 | Which sky |
+| lit, shade | color | | Sunlit and shadowed colours |
+| opacity | number | 1 | Greatest opacity of a puff |
 
 ## 2.4 - Scripts
 
