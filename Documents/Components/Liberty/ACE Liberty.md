@@ -2,7 +2,7 @@
 
 ## 1 - Abstract
 
-ACE Liberty is an ACE component protocol.
+ACE Liberty is an ACE component protocol. It says what a component looks like in a document, which fields it has, what each field means, and what the player sees and the document can read back as a result.
 
 ## 2 - Contents
 
@@ -13,41 +13,41 @@ tags list, per APInt §2.2.4) shall determine the type of component they represe
 
 #### 2.1.1 - Components and Content
 
-A utility without the tag is not a component and shall be ignored by the engine entirely. It
-remains part of the document, and is therefore readable by scripts, which is how a document carries
-the things a scene is made *from* rather than made *of*: maps, tables of monsters and items, quest
-definitions, dialogue, saved progress, and any part of a world that outlives the moment being
-played.
+A utility without the tag is not a component and is ignored by the game entirely. It remains part
+of the document, and is therefore readable by scripts, which is how a document carries the things a
+scene is made *from* rather than made *of*: maps, tables of monsters and items, quest definitions,
+dialogue, saved progress, and any part of a world that outlives the moment being played.
 
-A package containing no component anywhere beneath it is not part of the scene. Adapters shall not
-build a transform for it: it is a filing system, not a place, and a large body of content would
-otherwise cost a node per row.
+A package containing no component anywhere beneath it is not part of the scene: it is a filing
+system, not a place.
 
-The distinction is the document's own, and needs nothing added to APInt to express: the tag is what
-marks a utility as the engine's business, and everything untagged is simply data that happens to be
-kept in the same file as the scene that reads it.
+The distinction is the document's own, and needs nothing added to APInt to express: the tag marks a
+utility as part of the scene, and everything untagged is simply data that happens to be kept in the
+same file as the scene that reads it.
 
 #### 2.1.2 - Property Layout
 
-A component utility's properties field shall contain up to two data objects:
+A component utility's properties field contains up to two data objects:
 
-- **data** — authored data points. Written by document authors and by scripts. Read by the engine.
-- **state** — reflected data points. Written by the engine. Read by scripts. Never authored.
+- **data** — authored data points. Written by document authors and by scripts.
+- **state** — reported data points. Written by the runtime, read by scripts. Never authored.
 
-This division is normative and is referred to as the **authority rule**: the engine shall not write
-to a data object except for consumable fields (§2.2.4), and no author or script shall write to a
-state object. Engine writes to state are discarded from any script output.
+This division is normative and is referred to as the **authority rule**: the runtime writes to a
+data object only for consumable fields (§2.2.4), and no author or script writes to a state object.
+Anything a script writes to state is discarded.
 
-The reconciler shall detect change by comparing only the `data`, `source`, and `content` fields of
-components, and the `meta.data` field of entities. State is excluded from change detection.
+A change to the game is a change to a component's `data`, `source` or `content`, or to an entity's
+`meta.data`. A change to state alone is not a change.
 
-Any state field not applicable to the current runtime shall be absent rather than null.
+A state field that does not apply is absent rather than null.
 
 ### 2.2 - Entities
 
+#### 2.2.1 - Structure and Tags
+
 Per G-Scene, an entity is a package and its components are its utilities. Entity-level properties
-shall be placed in the `meta` field of the entity's properties (APInt §2.2.3), so that they apply
-to the entity itself and do not bubble to its components.
+are placed in the `meta` field of the entity's properties (APInt §2.2.3), so that they apply to the
+entity itself and do not bubble to its components.
 
     {
       "properties": {
@@ -60,17 +60,21 @@ to the entity itself and do not bubble to its components.
       "utilities": { }
     }
 
+#### 2.2.2 - Data, State and Spaces
+
 Entity `meta.data`:
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | position | vec3 | [0,0,0] | Translation, relative to parent entity |
-| rotation | vec3 \| vec4 | [0,0,0] | Length 3 = Euler XYZ in radians; length 4 = quaternion XYZW |
+| rotation | vec3 \| vec4 | [0,0,0] | Length 3 = angles in radians `[x, y, z]`: x tilts about X (pitch), y turns about Y (yaw), z rolls about Z. They are applied yaw first, then pitch, then roll, each about the axes the one before has already turned, so `[0, yaw, 0]` turns on the spot and `[pitch, yaw, 0]` looks up or down along the heading. Length 4 = quaternion XYZW |
 | scale | vec3 \| number | [1,1,1] | A single number scales uniformly |
 | space | string | "parent" | "parent", "world", "screen", or "camera" |
-| enabled | boolean | true | If false, the entity and its descendants are inert and unrendered |
-| visible | boolean | true | If false, the entity and its descendants are unrendered but remain simulated |
-| anchor | boolean | false | XR only. Requests a persistent spatial anchor at this pose |
+| enabled | boolean | true | If false, the entity and its descendants are inert and not drawn. See below |
+| visible | boolean | true | If false, the entity and its descendants are not drawn but remain simulated |
+| anchor | boolean | false | XR only. `true` requests a persistent spatial anchor at this pose. Any other value (an entity may keep a point called `anchor` of its own) is ordinary data and requests nothing |
+
+An entity's `meta.data` may carry any other fields. They have no effect on the scene and are the document's own: scripts read and write them freely, which is how an entity holds its health, its kind, its speed, where it is heading, and whatever else the game keeps about it. A name in the table above is reserved.
 
 Entity `meta.state`:
 
@@ -81,6 +85,11 @@ Entity `meta.state`:
 | scale | vec3 | Resolved world-space scale |
 | anchored | boolean | XR only. Whether an anchor was successfully established |
 
+An entity whose `enabled` is false is asleep, along with everything under it: it is not drawn,
+nothing in it is simulated, and nothing in it answers a query. Switching it back on wakes it. A
+terrain or scatter in a sleeping entity is let go of, and costs nothing until it is woken. One
+switch therefore removes an island, or the inside of a building, from the world.
+
 Entities with `space: "screen"` interpret position as normalized viewport coordinates, with
 [0,0] at the lower-left and [1,1] at the upper-right, and z as sort order. Entities with
 `space: "camera"` are positioned in the active camera's frame, in metres, so an entity at
@@ -88,35 +97,30 @@ Entities with `space: "screen"` interpret position as normalized viewport coordi
 mechanism by which 2D interfaces and heads-up displays are expressed; there is no separate
 interface component family.
 
-A camera-space entity is resolved against the active camera's *entity*, not against the camera
-object, so that it inherits the document's forward axis rather than the engine's. Its descendants
-follow it as they would anywhere else.
+A camera-space entity is placed in the frame of the active camera's *entity*, not of the camera
+itself, so it shares the document's forward axis. Its descendants follow it as they would anywhere
+else.
 
-Text drawn in camera space is how a document presents a heads-up display. Adapters shall not
-require a host to overlay one, since an element drawn above the rendering surface intercepts the
-pointer events the document needs.
+Text and meshes in camera space are how a document presents a heads-up display. They are part of
+the scene, not a layer over it.
 
-The engine writes the simulated pose of a physically driven entity to `meta.state`, never to
-`meta.data`. Writing to `meta.data.position` or `meta.data.rotation` on an entity carrying a
-dynamic body is a teleport: the value is consumed and cleared (§2.2.4). Such a teleport preserves
-the body's velocity; the `teleport` field of the body component (§2.3.8) is the form that clears
-it.
+A physically driven entity's simulated pose is reported in `meta.state`, never in `meta.data`.
+Writing `meta.data.position` or `meta.data.rotation` on an entity carrying a dynamic body is a
+teleport: the value is consumed and cleared (§2.2.4). Such a teleport preserves the body's
+velocity; the `teleport` field of the body component (§2.3.8) is the form that clears it.
 
 An entity carrying a dynamic body is simulated in world space and is detached from its parent's
 transform for as long as the body exists. Its `meta.state` therefore reports the simulated pose
 rather than a pose composed through the package hierarchy, and its descendants continue to follow
-it. Adapters shall not attempt to compose a simulated pose with an authored parent transform.
+it.
 
-### 2.3 - Conventions
+#### 2.2.3 - Conventions
 
-**Coordinates.** Right-handed, Y-up, -Z forward. Adapters targeting left-handed engines shall
-convert at the boundary.
+**Coordinates.** Right-handed, Y-up, -Z forward.
 
-Forward is -Z for every component that has a facing: a camera looks along its entity's -Z, a
-directional light shines along it, and a spot light points along it. Where the underlying engine
-disagrees — and camera conventions frequently do — the adapter shall correct for it rather than
-leaving the document to compensate. A camera and a light on the same entity must face the same way,
-and a control scheme derived from the document's forward axis must not read inverted.
+Forward is -Z for everything that has a facing: a camera looks along its entity's -Z, a
+directional light shines along it, and a spot light points along it. A camera and a light on the
+same entity face the same way.
 
 Rotation about +Y follows the right-hand rule, so increasing yaw turns from -Z toward -X, which is
 a turn to the left. Increasing pitch, a rotation about +X, tilts the view up.
@@ -125,29 +129,28 @@ a turn to the left. Increasing pitch, a rotation about +X, tilts the view up.
 newtons.
 
 **Colors.** Either a 3 or 4 element array of floats in [0,1] representing linear RGB(A), or a
-string in "#rrggbb" or "#rrggbbaa" form representing sRGB. Adapters shall accept both.
+string in "#rrggbb" or "#rrggbbaa" form representing sRGB. Both are accepted wherever a colour is.
 
 **Sources.** Wherever a component takes a `source`, APInt 2.1.2 permits a list of locations in
-order of preference. Adapters shall try each in turn, on the basis of whether a location can be
-reached rather than on what its file extension suggests, and report failure only when every
-candidate has failed. The component's state shall record which candidate succeeded. This is the mechanism by which a document depending on third-party asset hosts degrades
-rather than breaks, and adapters shall implement it for every component that loads an asset, not
-only for models.
+order of preference. Each is tried in turn, on whether it can be reached rather than on what its
+file extension suggests, and loading fails only when every candidate has failed. The component's
+state records which candidate succeeded. This is how a document that depends on third-party hosts
+degrades rather than breaks, and it holds for every component that loads something, not only
+models.
 
 **References.** A field documented as a *reference* holds an APInt element path, expressed either
 as a list of strings or as a period-delimited string (APInt §2.1.4). References resolve against the
-document root. Where a reference field may alternatively hold a literal asset location, the
-reference form shall be wrapped in an object with a single key naming the target kind, e.g.
+document root. Where a reference field may alternatively hold a literal location, the reference
+form is wrapped in an object with a single key naming the target kind, e.g.
 `{ "texture": "props.crate.albedo" }`, so that plain strings are always literal locations.
 
 **Capabilities.** The `world` component's `requires` field lists capabilities the document depends
-upon. An adapter which cannot supply a listed capability shall refuse the document rather than
-render it partially.
+upon. A game that cannot supply one of them refuses the document rather than showing it partially.
 
-### 2.4 - Consumable Fields
+#### 2.2.4 - Consumable Fields
 
 A small number of data fields express one-shot commands rather than persistent state. These are
-**consumable**: the engine applies the value, then deletes the field from the document. This is the
+**consumable**: the value is applied, then the field is deleted from the document. This is the
 sole exception to the authority rule, and the complete set is:
 
 | Component | Field |
@@ -160,38 +163,35 @@ sole exception to the authority rule, and the complete set is:
 | display | fullscreen, capture |
 | query | (the whole component, when `continuous` is false) |
 
-No other field is consumable, and adapters shall not extend this set.
+No other field is consumable.
 
-### 2.5 - Simulation Stepping
+#### 2.2.5 - Simulation Stepping
 
-Physics shall be advanced on the fixed timestep declared by `world.data.step`, and never on a
-frame's measured duration. A host which reports elapsed time accumulates it and advances by whole
-steps, capping the number of steps taken in any one frame so that a stall cannot compound. A host
-which reports no frame timing advances exactly one step per frame.
+Physics advances in fixed steps of `world.data.step` seconds, never by a frame's measured
+duration. Time that passes between frames is carried over and spent in whole steps, with a limit on
+how many are taken in one frame so that a stall cannot compound.
 
 The consequence, and the reason for the rule, is that a document is reproducible: the same document
-advanced the same number of frames produces the same state, on any adapter and at any frame rate.
-Documents driven by the Dynamic Declarative Simulation Pipeline depend on this, since an AI
-rewriting the simulation reference must be able to predict the effect of the rewrite.
+advanced the same number of frames produces the same state, at any frame rate. Documents driven by
+the Dynamic Declarative Simulation Pipeline depend on this, since an AI rewriting the simulation
+reference must be able to predict the effect of the rewrite.
 
-Adapters shall disable any automatic frame-rate-driven stepping supplied by the underlying engine.
+#### 2.2.6 - Order of a Frame
 
-### 2.6 - Order of a Frame
+Each frame, in this order:
 
-An adapter shall perform the following in order:
+1. The reserved entity (§2.5) is rewritten from what is currently the case.
+2. `start` scripts run, then `update` scripts, each seeing the output of those before it.
+3. Components that have left the document are removed, new ones are made, and changes are applied.
+4. Consumable fields are applied and cleared.
+5. Entity transforms are applied, and resolved poses are reported in state.
+6. Components update: a `character` (§2.3.26) moves before `query` components are answered, so a
+   probe sees where the body now is.
+7. State is written back into the document.
+8. The frame is drawn, and the simulation advances by §2.2.5.
 
-1. Write the reserved entity (§2.5) from the current runtime, replacing whatever it held.
-2. Resolve the document into its component and entity set.
-3. Run `start` scripts, then `update` scripts, applying each output before the next runs.
-4. Reconcile: destroy departed components, create new ones, report changes.
-5. Apply and clear consumable fields.
-6. Apply entity transforms and reflect resolved poses.
-7. Run `onUpdate` for every live component.
-8. Flush reflected state into the document.
-9. Render, then advance the simulation by §2.2.5.
-
-An entity's transform shall be established when its node is created, not deferred to step 6, since
-components created in step 4 — collision bodies above all — are constructed from it.
+An entity's transform is established when it is made, not at step 5, since components made at step
+3 — collision bodies above all — are built from it.
 
 ## 2.3 - Component Reference
 
@@ -204,31 +204,30 @@ Scene-wide settings. Exactly one per document, in the root entity. Ignored elsew
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | gravity | vec3 | [0,-9.81,0] | Omit or set null to disable physics simulation entirely |
-| background | color \| reference | [0,0,0,1] | A color, or `{ "texture": <path> }` referencing a cube texture, which becomes the skybox and the environment. A skybox is scenery and shall never answer a query |
-
-A background whose alpha is zero clears to nothing at all, which is what an augmented session needs:
-the passthrough camera shows through wherever the document has drawn nothing. The same document on a
-screen renders on black, so an augmented scene can be tried without a device.
-| horizon | number | 1000 | Skybox radius |
+| background | color \| reference | [0,0,0,1] | A color, or `{ "texture": <path> }` referencing a cube texture, which becomes the sky and the environment. The sky is scenery and never answers a query. A background whose alpha is zero shows nothing at all, which is what an augmented session needs: the camera passthrough shows wherever the document has drawn nothing. The same document on a screen shows black |
+| horizon | number | 1000 | Sky radius |
 | ambient | color | [0,0,0] | Ambient light contribution |
-| fog | object | — | `{ color, near, far }` for a linear fog, or `{ color, density }` for an exponential-squared one (a fog with a density is the second) |
+| fog | object | — | `{ color, near, far }` for a linear fog, or `{ color, density }` for an exponential-squared haze. A fog colour is a display colour: it is mixed in after the gamma curve |
+| sky | boolean | true | False hides the sky (a viewer under the sea), leaving the fog's colour behind everything |
+| post | object | — | `{ exposure, contrast, tonemap, vignette }`, grading every material that takes part in the scene's image processing; `tonemap` is `"aces"` or absent. See also §2.3.21 for `finish` |
 | step | number | 1/60 | Fixed physics timestep; see §2.2.5 |
 | substeps | integer | 1 | Physics solver substeps per step |
 | requires | string[] | [] | Required capabilities: "physics", "xr-vr", "xr-ar", "audio", "hands" |
-| boot | object | — | Read by the host page, not the adapter: `{ title, fonts: [{ family, src, weight }], loading: { title, status, ready, background, color, muted, track, bar, titleFont, bodyFont, minimum, timeout } }`. `fonts` are loaded before the world is made; `loading` is a cover shown until it is made, and when absent the document simply starts. A page shall not impose a cover of its own |
+| physics | string | — | "character" asks for the collision support that `character` components (§2.3.26) need. A document names a capability, never an engine. Where it cannot be supplied, `character.state.available` is false, and the document should move itself as it would without it |
+| boot | object | — | How the game presents itself while it starts: `{ title, fonts: [{ family, src, weight }], loading: { title, status, ready, background, color, muted, track, bar, titleFont, bodyFont, minimum, timeout } }`. `title` is the window's title. `fonts` are loaded before the world is made, so that text drawn in them uses them. `loading` is a cover shown until the world is made, with its own title, colours and fonts; when absent, the game just starts |
 
-A document with gravity (the default) is simulated by a physics solver that the host supplies; a host page loads one only for a document that asks for gravity, and a document with `gravity: null` needs none.
+A document with gravity (the default) has a physics simulation; a document with `gravity: null` has none.
 
 **state**
 
 | Field | Type | Meaning |
 |---|---|---|
 | ready | boolean | All non-streaming assets in the document have resolved |
-| capabilities | string[] | Capabilities the current runtime actually supplies |
+| capabilities | string[] | Capabilities actually available |
 
 ### 2.3.2 - camera
 
-Pose comes from the containing entity. A document with no enabled camera renders nothing.
+Pose comes from the containing entity. A document with no enabled camera shows nothing.
 
 **data**
 
@@ -242,55 +241,40 @@ Pose comes from the containing entity. A document with no enabled camera renders
 | target | vec3 \| reference | — | World-space look-at point or entity. Overrides entity rotation while present |
 | control | string | "none" | "none", "orbit", "fly", "first-person" — built-in navigation |
 | speed | number | 1 | Movement rate for built-in navigation, m/s |
-| viewport | vec4 | [0,0,1,1] | Normalized region of the display to render into |
-| order | number | 0 | Render order for multi-camera setups; highest is composited last |
-| clear | boolean | true | Whether to clear before rendering |
-| xr | object | — | `{ mode, features, space }` — see below |
+| viewport | vec4 | [0,0,1,1] | Normalized region of the display to draw into |
+| order | number | 0 | Order for multi-camera setups; highest is drawn last, on top |
+| clear | boolean | true | Whether to clear before drawing |
+| xr | object | — | `{ mode, features, space, teleport, scale, near, far }` — see below |
 
 `xr.mode` is "vr" or "ar". `xr.features` is a list of optional session features, e.g.
 "hit-test", "anchors", "planes", "hands", "light-estimation". `xr.space` is the reference space,
-default "local-floor". `xr.teleport`, absent by default, asks for the runtime's own teleportation
-locomotion; a document that moves its own subject shall leave it absent, or the two will contend
-for the same thumbstick.
-
-`xr.scale` is the fraction of the device's own resolution to draw at (1 is the device's choice).
-`xr.near` and `xr.far` replace the camera's clipping planes while presenting: a session writes an
-ordinary depth buffer, so a document that normally draws with a reversed one (§2.3.21, world `reverseDepth`)
-has it put aside for the session, and its precision then depends on a near plane that is not tiny.
-A controller state also carries `ray` (world space) and `local` (the same ray in the frame of the
-entity the view hangs off, which is the frame a camera-space interface is laid out in). While
-presenting, `world.post.finish` is not applied.
+default "local-floor". `xr.teleport`, absent by default, asks for the platform's own teleportation
+locomotion; a document that moves its own subject leaves it absent, or the two contend for the same
+thumbstick. `xr.scale` is the fraction of the device's own resolution to draw at (1 is the
+device's choice). `xr.near` and `xr.far` replace the camera's `near` and `far` while presenting.
+While presenting, `world.post.finish` is not applied.
 
 Presence of the `xr` field is a request to present this camera in an immersive session; absence
-means no session is requested. Sessions are never started implicitly. Where the runtime cannot
-offer one the request is simply never taken up, so the same document runs unchanged on a device
-with no headset. Adapters shall leave whatever entry and exit affordance the runtime provides in
-place rather than substituting their own.
+means no session is requested. Sessions are never started on their own: whatever entry and exit
+control the platform provides is left in place. Where a session cannot be offered the request is
+simply not taken up, so the same document runs unchanged on a device with no headset.
 
-A runtime may report its headset in its own reference space or in world space, and adapters shall
-not pass either through untranslated. `pose` is world space and `offset` is relative to the camera's
-entity, both derived by the adapter, so that a document turning about the head has a value whose
-frame it can rely on. A document given a world position where it expected a rig-relative one is
-thrown further from its subject the further it travels from the origin.
+While presenting, the headset's pose is reported relative to the document: `pose` is in world space
+and `offset` is relative to the camera's entity, so that a document turning about the head has a
+value whose frame it can rely on. The document's transform of the camera's entity is where the
+viewer is, and locomotion is expressed exactly as it is without a session. In a floor-relative space
+the headset measures eye height itself, so a document that raises its camera for a flat view is
+responsible for lowering it again while presenting.
 
-A reference space carries a position and a heading, and nothing else usefully. An adapter shall not
-rotate one about any axis but the vertical: the position is carried in the same transform, so an
-offset built from the base space discards it, and the viewer is returned to the origin on every
-frame the subject is otherwise still. A document wanting a subject to look or travel up and down
-should move the subject rather than tilt the space, which also spares it tilting the horizon.
-
-While presenting, the headset reports its pose within a reference space that knows nothing of where
-the document has placed its subject. The adapter shall resolve the headset against the camera's
-entity, so that the document's transform is the origin the headset moves around within and
-locomotion is expressed exactly as it is without a session. In a floor-relative space the headset
-measures eye height itself, so a document that raises its camera for a flat view is responsible for
-lowering it again while presenting.
+A viewer's reference space carries a position and a heading, and nothing else usefully. A document
+wanting its subject to look or travel up and down should move the subject rather than tilt the
+viewer's space, which also spares the horizon from tilting.
 
 **state**
 
 | Field | Type | Meaning |
 |---|---|---|
-| supported | string[] | XR modes the runtime supports |
+| supported | string[] | XR modes available |
 | presenting | boolean | An immersive session is active for this camera |
 | pose | object | `{ position, rotation }` — head pose in world space, XR only |
 | offset | vec3 | Head position relative to this camera's entity, XR only |
@@ -309,7 +293,9 @@ Direction is taken from the containing entity's forward axis (-Z). Position like
 | intensity | number | 1 | |
 | range | number | — | Falloff distance for point and spot |
 | angle | number | 0.7 | Cone half-angle in radians, spot only |
-| shadow | boolean \| object | false | `{ resolution, bias, near, far }`. Adapters shall register every mesh whose `shadow.cast` is not false as a caster, whichever of the light and the mesh was created first |
+| shadow | boolean \| object | false | `{ resolution, bias, near, far }`. Every mesh whose `shadow.cast` is not false casts a shadow from this light, whichever of the two was made first |
+| ground | color | — | Ambient only: the colour given to surfaces facing down |
+| on | boolean | true | Switches the light itself on or off. Switching off an entity that holds a light does not do this; a room's lamps are switched with `on` |
 
 **state**
 
@@ -334,9 +320,9 @@ height is a number in [0,1]; as a number array, raw RGBA samples whose grid is d
 described whichever is used, and a document authored against a remote image can be tested against
 generated heights.
 
-Numeric heights shall be used at the precision given. Passing them through an eight bit image
-buffer quantises them to 256 levels, which on a gentle grade is coarse enough to change the slope
-the surface reports and anything a document derives from it.
+Numeric heights are used at the precision given. An eight bit image has only 256 levels, which on
+a gentle grade is coarse enough to change the slope the surface reports and anything a document
+derives from it.
 
 **data**
 
@@ -345,16 +331,28 @@ the surface reports and anything a document derives from it.
 | shape | string | — | "box", "sphere", "plane", "cylinder", "capsule", "torus", "ground", "heightmap" |
 | elevation | vec2 | [0, size.y] | Minimum and maximum height, heightmap only |
 | resolution | vec2 | — | Sample grid dimensions when heights arrive as raw content |
-| size | vec3 \| number | [1,1,1] | Dimensions; interpretation per shape |
-| segments | integer \| vec2 | 16 | Tessellation |
+| size | vec3 \| number | [1,1,1] | Dimensions, by shape. box: `[width, height, depth]` along X, Y, Z. sphere: diameters along X, Y, Z. plane: `[width, height]`, a vertical sheet in the XY plane facing +Z, visible from both sides. ground: `[width, depth]` along X and Z, a flat sheet lying face up. cylinder: `[diameter, height]`. capsule: `[diameter, height]`. torus: `[diameter, thickness]`. A single number is used for every dimension |
+| segments | integer \| vec2 | 16 | Tessellation: the number of divisions round a curved shape, and along each side of a ground |
 | layout | object | — | Binary content layout: `{ stride, attributes: { position: {offset, type, count}, ... } }` |
-| billboard | string | "none" | "none", "y", "full" — orients toward the active camera |
+| billboard | string | "none" | "none", "y", "full" — turns toward the active camera |
 | shadow | object | — | `{ cast, receive }`, both boolean, both default true |
-| instances | object[] | — | Per-instance `{ position, rotation, scale }`, drawing the same mesh once for each. A tiled scene is thousands of copies of a handful of shapes, and a component apiece would be thousands of components diffed every frame to say the same thing |
-| node | string | — | For loaded models, render only the named sub-node |
+| instances | object[] | — | Per-instance `{ position, rotation, scale }`, drawing the same mesh once for each. A tiled scene is thousands of copies of a handful of shapes, and a component apiece would be thousands of components to say the same thing |
+| node | string | — | For loaded models, show only the named sub-node |
+| opacity | number | 1 | How much of it can be seen; below 1 it is translucent. Changing only the opacity is cheap enough to do every frame |
+| order | integer | 0 | Draw layer; see below |
 
 2D sprites are expressed as `shape: "plane"` with a material carrying a `region`. Sprite sheets
 animate by patching that region.
+
+**Draw layers.** `order` is the layer of a translucent mesh or text. Within a layer, translucent
+surfaces are drawn far to near, measured to the middle of each, which puts a wide panel in front of
+text that lies across its corner; a higher layer is drawn later, over every lower one, and only
+the surfaces of one layer are sorted against each other. Everything translucent in a world (the
+sea at 5, clouds at 8) sits below menus (10 to 20) and the heads-up display (30 to 32). An `order`
+of 10 or more makes the surface an *overlay*: it is drawn after everything else with its own depth,
+so a wall between it and the viewer does not hide it. A heads-up display or menu is an overlay, and
+may be placed far from the camera and scaled up, which keeps small position errors far from the
+world's origin from showing as shaking.
 
 **state**
 
@@ -381,11 +379,12 @@ opaque white material is used. Materials are shared across entities by reference
 | metallic | number | 0 | |
 | roughness | number | 1 | |
 | emissive | color | [0,0,0] | |
-| unlit | boolean | false | Bypass lighting entirely — the common case for 2D |
+| unlit | boolean | false | Ignore lighting entirely — the common case for 2D |
 | blend | string | "opaque" | "opaque", "blend", "mask" |
+| alpha | string | — | `"texture"`: the transparency is the base map's own (a picture with a cut-out or a soft edge), rather than a flat colour with an alpha. Used with `blend: "blend"` |
 | cutoff | number | 0.5 | Alpha threshold, mask only |
 | side | string | "front" | "front", "back", "double" |
-| region | vec4 | [0,0,1,1] | UV sub-rectangle — atlas and sprite-sheet addressing |
+| region | vec4 | [0,0,1,1] | `[u, v, width, height]`: the window of the picture that is shown, v measured from the bottom. Atlas and sprite-sheet addressing; changing it pans and zooms the picture |
 | tiling | vec2 | [1,1] | |
 | offset | vec2 | [0,0] | |
 | maps | object | — | `{ base, normal, metallic, roughness, emissive, occlusion }` |
@@ -417,8 +416,8 @@ declared by `data.size`; both are required in that case.
 | mipmaps | boolean | true | |
 | srgb | boolean | true | Whether to interpret samples as sRGB |
 | flip | boolean | false | Flip vertically on load |
-| cube | boolean | false | Treat as a cubemap. `source` is the common prefix of six face files; the adapter appends the face suffixes |
-| faces | string[] | — | Explicit face file names, overriding the default suffixes |
+| cube | boolean | false | Treat as a cubemap. `source` is the common prefix of six face files |
+| faces | string[] | — | Explicit face file names, in place of the common prefix |
 
 **state**
 
@@ -430,24 +429,24 @@ declared by `data.size`; both are required in that case.
 
 ### 2.3.7 - text
 
-The string to render is the utility's `content`.
+The string to show is the utility's `content`.
 
 **data**
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| font | string \| reference | — | Font location, or reference to a texture for a bitmap font |
+| font | string \| reference | — | A font in CSS shorthand, weight then size in pixels then family, e.g. `700 54px Cinzel, sans-serif` (default `bold 72px sans-serif`); or a reference to a texture for a bitmap font. The pixel size sets how finely the glyphs are drawn and should be about 0.56 of `resolution` |
 | size | number | 1 | Em height, in meters for world space, in normalized units for screen space |
 | color | color | [1,1,1,1] | |
 | align | string | "center" | "left", "center", "right": how lines sit in the plane |
 | anchor | string | "center" | Which part of the text sits at the entity, as words: "center", or "top", "bottom", "left", "right" and pairs of them ("top left"). A billboard mirrors the horizontal part |
 | width | number | content length | Width of the plane, in the same units as `size`. The glyphs are sized by `size`, so the plane's width does not stretch them |
 | wrap | boolean | false | Break a long line to fit `width`. A newline always starts a line; the plane grows downward as lines are added |
-| resolution | integer | 128 | Pixels in a line of the text's texture. 64 is plenty for text drawn at screen size |
+| resolution | integer | 128 | Pixels in a line of the text. 64 is plenty for text shown at screen size |
 | shadow | boolean | true | A soft dark shadow behind the glyphs |
 | leading | number | 1.2 | Line height multiplier |
 | billboard | string | "none" | As per mesh |
-| order | integer | 0 | Draw layer, as for a mesh (section 2.3.21) |
+| order | integer | 0 | Draw layer, as for a mesh (§2.3.4) |
 
 **state**
 
@@ -479,12 +478,10 @@ body but no collider is simulated as a point mass.
 | torque | vec3 | — | *Consumable.* Instantaneous angular impulse |
 | teleport | object | — | *Consumable.* `{ position, rotation }`, clears velocity |
 
-Velocity is a standing instruction rather than a one-off. Adapters shall apply it on every frame it
-is present, since a value set once is taken back by friction and by every contact, and a document
-driving a body under its own power would come to a halt and never move again. They shall apply it
-**after** reading the state below, or a document is handed back its own request in place of what the
-simulation produced: gravity is then never visible in it, and a body told once to rise rises for
-ever.
+Velocity is a standing instruction rather than a one-off: it is applied on every frame it is
+present, since a value set once is taken back by friction and by every contact, and a document
+driving a body under its own power would come to a halt. It is applied *after* the state below is
+read, so a script is handed what the simulation produced and not its own request back.
 
 A document should not take back an axis it does not mean to control. Reading the vertical out and
 handing it in again puts a value that is always a frame old into the value it came from, and the two
@@ -518,8 +515,9 @@ without a body in the same entity is static.
 | friction | number | 0.5 | |
 | restitution | number | 0 | |
 
-"convex", "mesh" and "heightmap" derive from the sibling mesh geometry. "mesh" and "heightmap" are
-valid only on static bodies. A sibling mesh with `shape: "heightmap"` resolves "auto" to "heightmap".
+"convex", "mesh" and "heightmap" take their shape from the sibling mesh geometry. "mesh" and
+"heightmap" are valid only on static bodies. A sibling mesh with `shape: "heightmap"` makes "auto"
+mean "heightmap".
 
 **state**
 
@@ -528,8 +526,8 @@ valid only on static bodies. A sibling mesh with `shape: "heightmap"` resolves "
 | contacts | object[] | `{ target, phase, point, normal, impulse }` |
 
 `target` is the element path of the other entity. `phase` is "begin", "stay", or "end". The contacts
-list is rewritten each simulation step; a "begin" is guaranteed to be visible to scripts for exactly
-one frame, and an "end" likewise.
+list is rewritten each simulation step; a "begin" is visible to scripts for exactly one frame, and
+an "end" likewise.
 
 ### 2.3.10 - joint
 
@@ -569,7 +567,7 @@ Sound, from `source` or `content`.
 | volume | number | 1 | |
 | rate | number | 1 | Playback rate |
 | loop | boolean | false | |
-| autoplay | boolean | false | Play once loaded, subject to gesture policy |
+| autoplay | boolean | false | Play once loaded, once the player has acted (see `display.state.gesture`) |
 | distance | vec2 | [1,100] | Reference and maximum distance for spatial falloff |
 | cone | vec3 | — | `{ inner, outer, gain }` for directional sources |
 | play | boolean \| number | — | *Consumable.* Begin playback, optionally at the given offset |
@@ -584,7 +582,7 @@ Sound, from `source` or `content`.
 | playing | boolean | |
 | time | number | Current playback position |
 | duration | number | |
-| blocked | boolean | Playback is awaiting a user gesture, or no audio engine exists yet |
+| blocked | boolean | Playback is waiting for the player to act first, or sound is unavailable |
 | source | string | Which candidate location was actually loaded |
 | error | string | Why nothing is playing, when nothing is playing |
 
@@ -596,9 +594,11 @@ Playback of named clips supplied by a mesh in the same entity, or by `source`.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| clip | string | — | Clip name; see the sibling mesh's `state.clips`. Changing it shall stop the clip it replaces, since two clips playing at once blend into nothing |
+| clip | string | — | Clip name; see the sibling mesh's `state.clips`. Changing it stops the clip it replaces (immediately when `blend` is 0), since two clips playing at once blend into nothing |
 | speed | number | 1 | |
 | loop | boolean | true | |
+| autoplay | boolean | false | Play the selected clip whenever it is selected or changed |
+| blend | number | 0 | Seconds over which a change of `clip` is mixed rather than switched; see below |
 | weight | number | 1 | Blend weight when several animation components are active |
 | range | vec2 | — | Sub-range of the clip, in seconds |
 | play | boolean | — | *Consumable.* |
@@ -614,8 +614,13 @@ Playback of named clips supplied by a mesh in the same entity, or by `source`.
 | duration | number | |
 | finished | boolean | True for one frame when a non-looping clip completes |
 
-A loader commonly starts the first clip of a model itself. Which clip plays is the document's
-decision, so adapters shall stop whatever arrived running.
+When `blend` is above 0 and `clip` is changed, the clip being left goes on playing while the new one
+is mixed in over it, and is stopped when the mix is whole, so a figure does not jump between poses.
+A change made during a mix completes that one first.
+
+Clips are looked up among those of the entity's own mesh first, since every copy of a model brings
+clips with the same names. A model may start a clip of its own when it arrives; which clip plays is
+the document's decision, so whatever arrived running is stopped.
 
 ### 2.3.13 - script
 
@@ -642,9 +647,9 @@ Code, from `content` or `source`. See §2.4.
 
 ### 2.3.14 - query
 
-A question the document asks of the engine. Scripts create or patch the data; the engine writes the
-answer to state on the same frame. If `continuous` is absent or false, the engine deletes the
-component after writing the result.
+A question the document asks of the world. Scripts create or patch the data; the answer is written
+to state on the same frame. If `continuous` is absent or false, the component is deleted after the
+result is written.
 
 **data**
 
@@ -657,9 +662,11 @@ component after writing the result.
 | distance | number | 1000 | |
 | screen | vec2 | — | For "pick", normalized viewport coordinates instead of origin/direction |
 | shape | object | — | For "shape" and "overlap": `{ shape, size }` as per collider. For an overlap sphere, `size` is the radius |
-| tags | string[] | — | Restrict the answer to entities carrying any of these tags (§2.2.2); omit to accept anything |
+| tags | string[] | — | Restrict the answer to entities carrying any of these tags (§2.2.1); omit to accept anything |
 | limit | integer | 1 | Maximum hits to return; 0 for unlimited |
-| continuous | boolean | false | Re-evaluate every frame rather than once |
+| continuous | boolean | false | Answer every frame rather than once |
+| surfaces | string | — | `"all"`: a ray aimed straight down at a terrain also tests the other ground meshes (a roof, a floor, a bridge), and the higher surface that is nearer the ray's start wins. Without it such a ray is answered from the terrain alone, which is much cheaper. Starting the ray just above a head, with `"all"`, finds the floor under a roof and not the roof |
+| under | boolean | false | A ray aimed straight down at a terrain that starts *below* the ground normally finds nothing, since the ground is behind it. With `under` it answers with the ground above it, at a negative `distance`, so a body that has ended up inside a slope can still be told where the surface is |
 
 **state**
 
@@ -667,57 +674,56 @@ component after writing the result.
 |---|---|---|
 | hits | object[] | `{ target, point, normal, distance }`, nearest first |
 
+Only things that are drawn answer: an entity that is switched off (§2.2.2) answers nothing.
+
 `normal` is the surface normal at the point struck, in world space. A document reads the gradient
 along a horizontal heading **d** from it as `-(d.x * n.x + d.z * n.z) / n.y`, which is what makes a
-surface-relative rate of travel expressible without the adapter knowing anything about walking.
+surface-relative rate of travel expressible.
 
 For `type: "overlap"`, every entity within the radius is answered rather than those along a line.
 `point` is the nearest point on the other body, `distance` is how far that lies from the query
 centre, and `normal` points from that point back toward the centre — so a document separates two
 bodies by moving along `normal` by `radius - distance`. Where the centre lies inside the other body
 there is no surface direction to report, and the normal points out through the nearest **side**
-face, with `distance` reported **negative**: how far in the query has gone along that normal.
-Answering zero would have a document separate by a fixed amount however deep it was, and anything
-moving faster than that per frame would walk through a step at a time.
+face, with `distance` negative: how far in the query has gone along that normal. Answering zero
+would have a document separate by a fixed amount however deep it was, and anything moving faster
+than that per frame would walk through a step at a time.
+
+An overlap against a mesh that does not move and is not a skinned or repeated model answers for its
+triangles, so a building can be walked round, into and under; a skinned or repeated model answers
+for its bounding box, which is generous for a long thin shape held at an angle. Scattered instances
+answer overlaps only if they carry `collide` (§2.3.19), and answer no ray or pick.
 
 An overlap is answered from the state of the previous frame, so a document is responsible for not
-moving further in one step than the body it is moving. Beyond that, following the nearest face out
-of something thin can eject a body through its far side; a document that knows which way it was
-travelling should retreat along that instead. The floor of a volume a body is standing inside is usually the nearest face of all, and
-answering with it says the way out is downwards, which is no use to anything that walks: separating
-vertically belongs to a downward probe, and an overlap answers laterally.
-
-Adapters may answer an overlap against world bounding volumes rather than exact geometry. This is
-an approximation, and a generous one for a long thin shape held at an angle.
-
-A body that separates along the whole normal will ride up and over whatever it walks into. Using
-only the horizontal part stops it instead, which is usually what is wanted, and is a decision for
-the document rather than the adapter.
+moving further in one step than the body it is moving. Following the nearest face out of something
+thin can eject a body through its far side; a document that knows which way it was travelling should
+retreat along that instead. The floor of a volume a body is standing inside is usually the nearest
+face of all, and answering with it says the way out is downwards, which is no use to anything that
+walks: separating vertically belongs to a downward probe, and an overlap answers laterally. A body
+that separates along the whole normal will ride up and over whatever it walks into; using only the
+horizontal part stops it instead, which is usually what is wanted, and is the document's decision.
 
 An unrestricted query answers for the nearest surface of any kind, which is rarely what a probe
 wants: a downward ground probe will otherwise report the underside of whatever the subject is
-standing beneath, and a document following that answer will place the subject on top of it. Tagging
-the surfaces that a probe should accept is how a document expresses the difference between the
-ground and the things resting on it.
+standing beneath. Tagging the surfaces a probe should accept is how a document expresses the
+difference between the ground and the things resting on it.
 
 Tags cannot separate a floor from a roof, because a platform is both: something to stand on from
 above and something to walk beneath from below. A probe cast from overhead should therefore ask for
 every surface it passes rather than the nearest, by setting `limit` to zero, and the document should
 choose among the answers — the highest that is not further above the subject than it could climb.
 Nothing overhead should count while the subject is off the ground, or it will be caught on a roof
-at the top of a jump.
-
-How far above counts as climbable is the same decision as how far up a body's own volume begins.
-A body stopped by anything its shape touches cannot rise onto a step its shape is already resting
-against, so the step height and the clearance beneath the body are set against one another or
-neither works.
+at the top of a jump. How far above counts as climbable is the same decision as how far up a body's
+own volume begins: a body stopped by anything its shape touches cannot rise onto a step its shape is
+already resting against, so the step height and the clearance beneath the body are set against one
+another or neither works.
 
 `type: "hit-test"` requires an XR session with the "hit-test" feature and ignores origin and
 direction, using the session's tracked input ray or viewer pose.
 
 ### 2.3.15 - time
 
-Engine-created. See §2.5.
+Created by the runtime. See §2.5.
 
 **data**
 
@@ -738,7 +744,7 @@ Engine-created. See §2.5.
 
 ### 2.3.16 - display
 
-Engine-created. One per document.
+Created by the runtime. One per document.
 
 **data**
 
@@ -753,12 +759,12 @@ Engine-created. One per document.
 
 | Field | Type | Meaning |
 |---|---|---|
-| size | vec2 | Drawing buffer dimensions in pixels |
+| size | vec2 | Drawing area in pixels |
 | ratio | number | Device pixel ratio |
 | aspect | number | |
 | focused | boolean | |
 | fullscreen | boolean | |
-| gesture | boolean | A user gesture has occurred, unblocking audio and XR |
+| gesture | boolean | The player has acted (a key, a click, a tap), which allows sound and XR to begin |
 | locked | boolean | The pointer is captured |
 | xr | object | `{ presenting, mode, features, space }` |
 | fps | number | Frames per second, averaged over the last second |
@@ -766,9 +772,9 @@ Engine-created. One per document.
 
 ### 2.3.17 - controller
 
-Engine-created, one per connected input device. Created on connection and destroyed on
-disconnection. Every input device in ACE — keyboard, pointer, touch point, gamepad, XR controller,
-XR hand — is a controller, and is read identically.
+Created by the runtime, one per connected input device, when the device connects and removed when it
+disconnects. Every input device — keyboard, pointer, touch point, gamepad, XR controller, XR hand —
+is a controller, and is read identically.
 
 **data**
 
@@ -785,17 +791,17 @@ XR hand — is a controller, and is read identically.
 | index | integer | Distinguishes multiple devices of the same kind |
 | handedness | string | "left", "right", or "none" |
 | digital | string[] | Every input currently on |
-| pressed | string[] | Inputs that turned on this frame. Valid for one engine tick only: a script that runs less often than the engine ticks may miss an edge, and should derive edges from `digital` against what it saw last time |
+| pressed | string[] | Inputs that turned on this frame. Valid for one tick only: a script that runs less often than the game ticks may miss an edge, and should derive edges from `digital` against what it saw last time |
 | released | string[] | Inputs that turned off this frame |
 | analog | object | Input identifier to number |
 | pose | object | `{ position, rotation, linear, angular }` for tracked devices, in world space |
-| ray | object | `{ origin, direction }` — the device's targeting ray in world space, tracked devices only |
-| local | object | `{ origin, direction }` — the same ray in the frame of the entity the view hangs off, which is the frame a camera-space interface is laid out in; XR controllers only, while presenting |
+| ray | object | `{ origin, direction }` — the device's pointing ray in world space, tracked devices only |
+| local | object | `{ origin, direction }` — the same ray in the frame of the camera's entity, which is the frame a camera-space interface is laid out in; XR controllers only, while presenting |
 | joints | object[] | `{ name, position, rotation, radius }`, XR hands only |
 
 **Digital identifiers.**
 
-- keyboard: `KeyboardEvent.code` values, e.g. "KeyW", "Space", "ArrowLeft", "ShiftLeft".
+- keyboard: the key's code, e.g. "KeyW", "Space", "ArrowLeft", "ShiftLeft".
 - pointer: "button0" through "button4".
 - touch: "contact".
 - gamepad: "a", "b", "x", "y", "left-bumper", "right-bumper", "left-stick", "right-stick",
@@ -812,35 +818,35 @@ XR hand — is a controller, and is read identically.
 - xr-controller: "thumbstick-x", "thumbstick-y", "touchpad-x", "touchpad-y", "trigger", "squeeze".
 - xr-hand: "pinch".
 
-Tracked controllers are aliased by handedness rather than by index, since that is how a document
-addresses them: `engine.controllers.xr-controller-left`. A device that reports no handedness is
-aliased `none`.
+Tracked controllers are addressed by handedness rather than by index, since that is how a document
+refers to them: `engine.controllers.xr-controller-left`. A device that reports no handedness is
+addressed as `none`.
 
-**select** is the one action every kind of immersive input can make, and adapters shall report it
-for all of them: a trigger pulled on a controller, a pinch of a tracked hand, and a tap on the
-screen of a phone. A controller reports it alongside `trigger`, so that a document binding to
-`select` needs no second binding for any of the three. A controller shall be published whether or
-not there is a gamepad behind it — a phone in a session has a ray and a select and nothing else.
+**select** is the one action every kind of immersive input can make: a trigger pulled on a
+controller, a pinch of a tracked hand, and a tap on the screen of a phone. A controller reports it
+alongside `trigger`, so that a document binding to `select` needs no second binding for any of the
+three. A controller is present whether or not there is a gamepad behind it — a phone in a session
+has a ray and a select and nothing else.
 
 Analog values are in [-1,1] for axes and [0,1] for triggers and pressure. A stick pushed away from
-the person reads positive on every device, which for WebXR means inverting what the runtime
-reports. Adapters shall report
-unknown inputs under their platform-native identifier rather than omitting them.
+the person reads positive on every device. Inputs the list above does not name are reported under
+the device's own identifier rather than left out.
 
 ### 2.3.18 - terrain
 
-A landscape too large to be a mesh: a height field read from an image, drawn in chunks that change
-level of detail with the distance of the viewer. Provided by the Babylon adapter's `aceWorld.js`.
+A landscape too large to be a mesh: a height field read from an image, drawn in chunks whose detail
+falls with the distance of the viewer.
 
-Heights, and the material weights that colour the surface, stay in files. Every script is handed the
-serialised document each frame and the reconciler compares every component's data each frame, so a
-document that carried a million samples would spend its frame on them. The component's `source`
-is the height image, a list of locations tried in turn (§2.3). The entity carrying a terrain shall be
-neither rotated nor scaled. It should carry the tag its queries select, usually `ground`, so that
-scripts find the surface with a ray (§2.3.14); every chunk answers as the entity.
+Heights, and the weights that colour the surface, stay in files, so that the document stays small
+enough to read every frame. The component's `source` is the height image, a list of locations tried
+in turn (§2.2.3). The entity carrying a terrain is neither rotated nor scaled. It should carry the
+tag its queries select, usually `ground`, so that scripts find the surface with a ray (§2.3.14);
+every chunk answers as the entity.
 
 Samples are columns along +X and rows along -Z, as for a mesh heightmap (§2.3.4). The image is
 `resolution` samples across, where `resolution` minus one is a whole number of chunks.
+
+A terrain is solid to a `character` (§2.3.26) while its entity is switched on.
 
 **data**
 
@@ -857,11 +863,9 @@ Samples are columns along +X and rows along -Z, as for a mesh heightmap (§2.3.4
 | blend | number | 320 | Distance at which a layer has faded to its average colour |
 | grassTint | color | [1,1,1] | Multiplies the grass layer |
 
-Chunks are lit by the scene's first directional light and first ambient light, and fogged as the scene
-is (§2.3.1). Rock is chosen wherever the slope is steep whatever the splat says, and snow lies only
-where it is not.
-
-A chunk's skirt hangs below each of its edges so that neighbours at different levels never show a gap.
+The terrain is lit by the scene's first directional light and first ambient light, and fogged as
+the scene is (§2.3.1). Rock shows wherever the slope is steep whatever the splat says, and snow
+lies only where it is not.
 
 **state**
 
@@ -869,21 +873,21 @@ A chunk's skirt hangs below each of its edges so that neighbours at different le
 |---|---|---|
 | loaded | boolean | The height image has been read |
 | chunks | integer | Chunks in the landscape |
-| live | integer | Chunks currently built |
-| queued | integer | Chunks waiting to change level |
+| live | integer | Chunks currently drawn |
+| queued | integer | Chunks waiting to change level of detail |
 | resolution | vec2 | Samples across and down |
 | error | string | Present only on failure |
 
 ### 2.3.19 - scatter
 
-Many copies of a few models, read from a table. Provided by `aceWorld.js`.
+Many copies of a few models, read from a table.
 
 `data.table` is a list of locations of a binary file of little-endian 32 bit floats, five to a
 record: x, y, z, yaw about +Y and uniform scale, relative to the entity. The table is divided into
 square chunks of `data.chunk` metres (default 256). While the viewer is within `range` of a chunk,
-the chunk is drawn as one thin instance of each part of a model, and `lods` names the model for
-each distance band, nearest first, so that a forest is a few hundred triangles a tree in the
-distance. A chunk beyond the last range is not drawn at all.
+the chunk is drawn, and `lods` names the model for each distance band, nearest first, so that a
+forest is a few hundred triangles a tree in the distance. A chunk beyond the last range is not
+drawn at all.
 
 **data**
 
@@ -892,9 +896,10 @@ distance. A chunk beyond the last range is not drawn at all.
 | table | string \| string[] | — | Locations of the instance table |
 | chunk | number | 256 | Chunk size in metres |
 | lods | object[] | — | `{ source, range }` in increasing range; `source` is a list of locations as for a mesh |
-| collide | object | — | Makes the instances solid to overlap queries (§2.3.14). A trunk, `{ radius, height, base }`, as a cylinder in metres at unit scale about each instance's origin, and optionally a `crown`, `{ radius, base, height }`, above it. Scaled with the instance. The entity must carry a tag the query selects |
+| collide | object | — | Makes the instances solid (§2.3.14, §2.3.26). A trunk, `{ radius, height, base }`, as a cylinder in metres at unit scale about each instance's origin, and optionally a `crown`, `{ radius, base, height }`, above it. Scaled with the instance. The entity must carry a tag the query selects |
 
-Scattered instances do not answer ray or pick queries, and answer overlaps only if `collide` is given.
+Scattered instances do not answer ray or pick queries, and answer overlaps only if `collide` is
+given.
 
 **state**
 
@@ -939,38 +944,16 @@ raising `emitting` for a moment, and the component keeps to the data and state s
 |---|---|---|
 | alive | integer | Particles currently alive |
 
-### 2.3.21 - Extensions to other components
+### 2.3.21 - Post-processing
 
-These fields are additions; a document without them behaves as before.
-
-- **world** `fog` may be `{ color, density }`, which is exponential-squared haze, in place of `{ color, near, far }`.
-  A fog colour is a display colour: materials mix fog after the gamma curve. `post` is `{ exposure, contrast, tonemap, vignette }`
-  and grades every material that honours the scene's image processing; `tonemap` is `"aces"` or absent.
-  The background skybox shall not write depth.
-- **light** `ground` is the colour an ambient light gives to surfaces facing down.
-- **text** `font` is the canvas font of the glyphs, default `bold 72px sans-serif`. The texture is sized to the plane the text is drawn on, so a long line is not squashed.
-- **mesh** and **text** `order` (integer, default 0) is the layer of a translucent surface. Everything translucent in the world (the sea, 5; clouds, 8) is below the menus (10 to 20) and the heads-up display (30 to 32). Translucent surfaces are drawn far to near, measured to the middle of each one, which puts a wide panel in front of text that lies across its corner; a higher layer is drawn later, over every lower one, and only the surfaces of one layer are sorted by distance. A heads-up display is a high layer.
-- **world** `post.finish` is `{ bloom: { threshold, weight, kernel, scale }, fxaa, grade: { exposure, saturation, contrast, shadows, highlights, vignette, sharpen } }`: bloom and edge smoothing, then one grading pass (a filmic tone curve in linear light, cool shadows and warm highlights as RGB multipliers, a vignette, a sharpen, and a little grain). It is applied to the active camera, and made again if the camera is replaced.
-- **world** `sky: false` hides the sky (a viewer under the sea), leaving the fog's colour behind everything; `fog`, `post` and `sky` are applied in place when they alone change, so a document may change them every frame.
-- **mesh / text** `order` of 10 or more makes the mesh an *overlay*: it is drawn in a layer of its own after everything else, on a cleared depth buffer, sorted among overlays by `order`. A heads-up display or a menu is an overlay; a wall between it and the viewer does not hide it, so it may be placed far from the camera and scaled up, which keeps the millimetre error of a position far from the world's origin from showing.
-- **world** the sky box is drawn first and writes no depth, so geometry beyond its small box is not replaced by sky. The adapter's engine uses a reversed floating-point depth buffer unless `options.reverseDepth` is false.
-- **material** `region: [u, v, width, height]` shows a window of the picture (v from the bottom); changing it at run time pans and zooms the picture.
-- **light** `on` (boolean, default true) switches the light itself on or off. Switching off an entity that holds a light does not do this: a light's state is not re-read from its parents, so a room's lamps are switched with `on`.
-- **query** a ray straight down at the terrain tests other ground meshes too (a roof, a floor) only when its data says `surfaces: "all"`; every other such ray is answered from the height grid alone, which is much cheaper.
-- **entity** everything under an entity whose `enabled` is false is asleep: it is not drawn, and its transforms are not read again until the entity is switched on. A `terrain` or `scatter` whose entity is switched off lets go of what it built (a scatter) or stops streaming (a terrain), reports nothing pending, and answers no ground or contact queries. One switch therefore removes an island, or a building's interior, from the world's cost.
-- **query** a predicate-filtered pick no longer returns a mesh that is switched off.
-- **query** an `overlap` against a still mesh (not skinned, not drawn as instances) answers for its triangles and not its bounding box: the nearest point of the nearest triangle within the radius, with the normal from that point toward the query and the distance to it. A building is therefore walked round, into and under. The triangles are taken into world space once, sorted into a grid, and sorted again if the mesh moves. Skinned meshes and instanced meshes keep the bounding-box answer.
-- **query** a `ray` aimed straight down at the terrain answers from the height grid, but any other ground-tagged mesh nearer the ray's start (a roof, a floor, a bridge) is tested by its triangles too, and the higher surface wins. Starting the ray just above a head therefore finds the floor under a roof and not the roof.
-- **query** a `ray` aimed straight down at the terrain is answered from the terrain's height grid and not its triangles (the same answer, far cheaper).
-- **mesh** `opacity` (number, default 1) is how much of it can be seen; below 1 it is drawn translucent. Changing only the opacity of a mesh does not rebuild it, so it can be animated every frame.
-- **camera** asking for an immersive session (`xr`) from an origin the runtime does not trust (plain http on anything but the local machine) shall lose the headset and nothing else: the request fails into the context's errors and the camera is created.
-- **animation** clips are found among those of the sibling mesh first, because every copy of a model brings groups with the same names; the scene's groups are consulted only for a mesh that brought none. While a model is loading the animation waits. `autoplay`, when true, plays the selected clip whenever it is bound or changed.
+`world.post.finish` is `{ bloom: { threshold, weight, kernel, scale }, fxaa, grade: { exposure, saturation, contrast, shadows, highlights, vignette, sharpen } }`: a glow round anything much brighter than its surroundings and smoothed edges, then one grading pass (a filmic tone curve in linear light, cool shadows and warm highlights as RGB multipliers, a vignette, a sharpen, and a little grain). It applies to the active camera. It is not applied while a camera is presenting in an immersive session. `fog`, `post`, `finish` and `sky` take effect in place when they alone change, so a document may change them every frame.
 
 ### 2.3.22 - speech
 
 A voice. Speaking is a matter of data and state like everything else: the text is said when `revision`
-changes, cutting off whatever was being said, and an empty text is silence. The adapter uses the host's
-speech synthesis, so which voices exist, and how good they are, belongs to the machine.
+changes, cutting off whatever was being said, and an empty text is silence. A line is only said when
+`revision` changes, so a document that says the same words twice changes it twice. Which voices
+exist, and how good they are, belongs to the machine the game runs on.
 
 **data**
 
@@ -987,16 +970,17 @@ speech synthesis, so which voices exist, and how good they are, belongs to the m
 
 | Field | Type | Meaning |
 |---|---|---|
-| supported | boolean | The host can speak |
+| supported | boolean | The machine can speak |
 | speaking | boolean | A line is being said |
-| voices | integer | Voices the host has (which may arrive after the first frame) |
+| voices | integer | Voices the machine has (which may arrive after the first frame) |
 
 ### 2.3.23 - storage
 
-A value the host keeps between visits. As with speech, writing is a revision: when `revision` changes,
+A value kept between visits. As with speech, writing is a revision: when `revision` changes,
 `value` is stored under `key` (an empty value removes the key). The value that is held is always in
-`state.value`, so a document reads what was kept from state and need hold a written value in its data for
-no longer than it takes to write it. It is a string; what is in it is the document's business.
+`state.value`, so a document reads what was kept from state and need hold a written value in its
+data for no longer than it takes to write it. It is a string; what is in it is the document's
+business.
 
 **data**
 
@@ -1010,18 +994,19 @@ no longer than it takes to write it. It is a string; what is in it is the docume
 
 | Field | Type | Meaning |
 |---|---|---|
-| available | boolean | The host lets the page keep anything (private windows may not) |
+| available | boolean | Anything can be kept (private windows may not allow it) |
 | value | string | What is held |
 | revision | integer | The revision last written |
 
 ### 2.3.24 - water
 
-The sea, seen from both sides: a surface at its entity's height, `size` across, drawn as a grid of `segments` squares (depth is
-interpolated across each triangle, and across one huge quad the error at a shoreline is visible). Above it the colour comes from the
-depth of water over the ground, which the adapter reads from the terrain's own height image: `shallow` over the shoals, `deep`
-beyond, foam where it meets land and rolling in over the shallows, two or three layers of ripples drifting different ways (the finest
-fade with distance), the sky reflected by Fresnel's rule and a glitter of sun. From below, a bright window of sky about as wide as Snell's law
-allows, and beyond it `under`. Both sides take the scene's fog.
+The sea, seen from both sides: a surface at its entity's height, `size` across, made of a grid of
+`segments` squares (a single huge square would show its error at a shoreline). Above it the colour
+comes from the depth of water over the ground, which is read from the terrain's height image:
+`shallow` over the shoals, `deep` beyond, foam where it meets land and rolling in over the shallows,
+two or three layers of ripples drifting different ways (the finest fade with distance), the sky
+reflected as water reflects it, and a glitter of sun. From below, a bright window of sky about as
+wide as the refraction of water allows, and beyond it `under`. Both sides take the scene's fog.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
@@ -1034,11 +1019,13 @@ allows, and beyond it `under`. Both sides take the scene's fog.
 
 ### 2.3.25 - clouds
 
-Clouds that are somewhere: heaps of soft puffs arranged in three dimensions, so that the viewer can fly round one, over it, or into it.
-A cloud is a flat-bottomed cluster, bigger puffs low, smaller high. Each puff is a billboard shaded as a sphere lit from the sun, its edge eaten
-away by noise, brighter toward the top of its cloud; they are drawn as thin instances of one quad and put in order far to near now and then so that they
-blend correctly. The field is made around the viewer from a hash of where each cell is (always the same, as far as the viewer goes) and drifts with the wind
-as a whole; the far cells are a few big puffs each. A puff the viewer is in or near fades out, so passing through is a thickening of the air.
+Clouds that are somewhere: heaps of soft puffs arranged in three dimensions, so that the viewer can
+fly round one, over it, or into it. A cloud is a flat-bottomed cluster, bigger puffs low, smaller
+high. Each puff looks like a sphere lit from the sun with its edge eaten away by noise, brighter
+toward the top of its cloud. The field is laid out around the viewer from where each cell is (so
+the sky is always the same for a given seed) and drifts with the wind as a whole; the far cells are a
+few big puffs each. A puff the viewer is in or near fades out, so passing through is a thickening of
+the air.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
@@ -1051,6 +1038,51 @@ as a whole; the far cells are a few big puffs each. A puff the viewer is in or n
 | seed | integer | 7 | Which sky |
 | lit, shade | color | | Sunlit and shadowed colours |
 | opacity | number | 1 | Greatest opacity of a puff |
+
+### 2.3.26 - character
+
+A body that is moved by asking for a velocity, and that nothing solid lets through. It is a
+capsule: it stops at, and slides along, whatever is in its way, however fast it is asked to go and
+however long the frame was. Needs `world.physics`.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| radius | number | 0.55 | Of the capsule |
+| height | number | 1.8 | Of the capsule, standing on the entity's origin (the origin is the feet) |
+| slope | number | 0.2 | The cosine of the steepest slope that counts as ground; steeper is slid down |
+| velocity | vec3 | [0,0,0] | The velocity asked for, in metres per second. It stays asked for until it changes |
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| available | boolean | Collision support is there. False: the document should move itself, as it would without it |
+| position | vec3 | Where the body is (the feet), after this frame's movement |
+| velocity | vec3 | What the movement came to, which is not what was asked where something was in the way |
+| grounded | boolean | Standing on ground, as of the last movement |
+| support | string | "supported", "sliding" or "unsupported" |
+| normal | vec3 | Of what it is standing on |
+| settled | boolean | After a teleport: the world round the body is solid and it is free to move |
+| pending | integer | Pieces of the world within reach that are not yet solid |
+
+The entity's own position is how a document *teleports* the body: put it somewhere other than where
+the state says it is, and the body is taken there and held (`settled` false) until the world round it
+is solid, and then released. A document that writes the position every frame writes what the state
+said. The body moves after the frame's scripts and before probes are answered (§2.2.6), so a probe
+sees where the body now is.
+
+**What is solid to it** is what the document already says is solid, near the body and only there:
+
+- a terrain, while its entity is switched on, as the surface its heights describe;
+- any mesh whose entity is tagged `solid` or `ground`, as its triangles in the world;
+- a person (a mesh with a skeleton) as a capsule round their bounds, standing where they stand;
+- the trunks and crowns of a scatter that has `collide`, for the instances nearest.
+
+Nothing about this is authored, and an entity that is switched off is not there. After a teleport
+it is all solid before the body is released; in flight it is made ahead of the body, nearest
+first.
 
 ## 2.4 - Scripts
 
@@ -1065,10 +1097,7 @@ The script's code is the body of a function of two named parameters:
 | path | JSON serialization of the script component's element path, as a list of strings |
 
 The function returns a string, or nothing. Returning nothing, an empty string, null, or undefined
-is equivalent to returning no change.
-
-Adapters shall construct the function with these parameter names bound, so that script authors
-address them directly rather than through positional argument access.
+is equivalent to returning no change. The parameters are addressed by name.
 
 ### 2.4.2 - Output Modes
 
@@ -1090,17 +1119,17 @@ Scripts of the requested phase execute once per frame, in ascending `order`, the
 order among equal orders. Each script's output is applied before the next script executes, so a
 script observes the results of those preceding it in the same frame.
 
-After all scripts have executed, and before reconciliation, the engine:
+After all scripts have executed, and before changes are applied, the runtime:
 
 1. Discards any content written to a `state` object or to the reserved entity (§2.5).
 2. Applies and then clears all consumable fields (§2.2.4).
-3. Rewrites every `state` object and the reserved entity from the current runtime.
+3. Rewrites every `state` object and the reserved entity from what is currently the case.
 
 This ordering makes `override` safe: a script may replace the entire authored document without
-destroying input, timing, or reflected state.
+destroying input, timing, or reported state.
 
-A script which throws shall have its error recorded in `state.error` and shall not modify the
-document that frame. A thrown error shall not halt the frame or other scripts.
+A script which throws has its error recorded in `state.error` and does not modify the document that
+frame. A thrown error does not halt the frame or other scripts.
 
 ### 2.4.4 - Agnostic Scripts
 
@@ -1110,21 +1139,21 @@ result as a dynamic list on its next execution. It is not yet specified here.
 
 ## 2.5 - The Reserved Entity
 
-The root package shall contain an entity aliased `engine`, created and maintained by the engine.
-Documents shall not define it; any authored content at that path is discarded on load.
+The root package contains an entity aliased `engine`, created and maintained by the runtime.
+Documents do not define it; any authored content at that path is discarded on load.
 
 It contains the `time` and `display` components, and one `controller` component per connected
 device, aliased by device kind and index, e.g. `engine.controllers.gamepad-0`.
 
 Only the `state` of these components is rewritten. Their `data` — the time scale, the cursor mode —
-is authored, belongs to the document, and shall be carried across the rewrite, so that a script may
-set it and have it persist.
+is authored, belongs to the document, and is carried across the rewrite, so that a script may set it
+and have it persist.
 
-In an XR session with the "planes" or "meshes" features, the engine additionally creates entities
-under `engine.detected`, each carrying a `mesh` component with manual geometry describing the
-detected surface, and entity tags identifying its semantic label where the runtime supplies one.
-Detected geometry is thereby readable, queryable, and renderable by the same mechanisms as authored
-geometry, and requires no component of its own.
+In an XR session with the "planes" or "meshes" features, entities are additionally created under
+`engine.detected`, each carrying a `mesh` component with manual geometry describing the detected
+surface, and entity tags identifying its semantic label where the platform supplies one. Detected
+geometry is thereby readable, queryable, and drawn by the same means as authored geometry, and
+needs no component of its own.
 
 ## 2.6 - Example
 
