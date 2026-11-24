@@ -215,6 +215,7 @@ Scene-wide settings. Exactly one per document, in the root entity. Ignored elsew
 | requires | string[] | [] | Required capabilities: "physics", "xr-vr", "xr-ar", "audio", "hands" |
 | physics | string | — | "character" asks for the collision support that `character` components (§2.3.26) need. A document names a capability, never an engine. Where it cannot be supplied, `character.state.available` is false, and the document should move itself as it would without it |
 | boot | object | — | How the game presents itself while it starts: `{ title, fonts: [{ family, src, weight }], loading: { title, status, ready, background, color, muted, track, bar, titleFont, bodyFont, minimum, timeout } }`. `title` is the window's title. `fonts` are loaded before the world is made, so that text drawn in them uses them. `loading` is a cover shown until the world is made, with its own title, colours and fonts; when absent, the game just starts |
+| origin | reference[] | — | An entity, named as a path, that the view is measured from. Where the world is far larger than the numbers a display can hold, every entity at the top of the document is drawn at its position *minus* that entity's position, so that whatever is near the viewer is drawn precisely wherever it is. Positions in the document are unchanged, and are kept as full-precision numbers. Absent, nothing is moved |
 
 A document with gravity (the default) has a physics simulation; a document with `gravity: null` has none.
 
@@ -863,6 +864,8 @@ A terrain is solid to a `character` (§2.3.26) while its entity is switched on.
 | blend | number | 320 | Distance at which a layer has faded to its average colour |
 | grassTint | color | [1,1,1] | Multiplies the grass layer |
 
+Heights are exact only if the image is a plain 8-bit PNG: a height is two bytes, one step of the high byte is metres of ground, and a picture that has been through a browser's colour handling can differ in those bytes. The water (§2.3.24) reads the same heights.
+
 The terrain is lit by the scene's first directional light and first ambient light, and fogged as
 the scene is (§2.3.1). Rock shows wherever the slope is steep whatever the splat says, and snow
 lies only where it is not.
@@ -872,6 +875,7 @@ lies only where it is not.
 | Field | Type | Meaning |
 |---|---|---|
 | loaded | boolean | The height image has been read |
+| exact | boolean | The heights were read from the image's own bytes. False means the image was an unusual kind of PNG, or not one, and was read as a picture, which a browser may alter slightly |
 | chunks | integer | Chunks in the landscape |
 | live | integer | Chunks currently drawn |
 | queued | integer | Chunks waiting to change level of detail |
@@ -1083,6 +1087,82 @@ sees where the body now is.
 Nothing about this is authored, and an entity that is switched off is not there. After a teleport
 it is all solid before the body is released; in flight it is made ahead of the body, nearest
 first.
+
+### 2.3.27 - starfield
+
+The distant sky of a universe: stars and the band of a galaxy, at no distance at all. It follows the
+viewer and is drawn behind everything.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| seed | number | 1 | Decides where the stars are |
+| density | number | 1 | How many stars; 0 shows none |
+| band | number | 1 | How bright the band of the galaxy is |
+| axis | vec3 | [0,1,0] | The pole of the band |
+
+### 2.3.28 - star
+
+A sun: a lit ball with a glow, whose colour comes from its temperature. Other things in the scene
+(`planet`) are lit by every `star` near enough to matter.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| radius | number | 6.96e8 | In metres |
+| temperature | number | 5778 | In kelvin; the colour follows |
+| seed | number | 0 | Of the surface's grain |
+| kind | string | "star" | `"blackhole"` gives off no light and a dark centre with a glow around it |
+| glowRadius | number | — | Overrides how far the glow reaches |
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| color | color | The light it gives, as a colour |
+| luminosity | number | Relative to the Sun |
+| radius | number | In metres |
+
+### 2.3.29 - planet
+
+A world, of any size: made of pieces that are made finer where the viewer is close and coarser where it
+is not, so that the same document is a ball seen from another star and a place to stand. It is lit by
+`star` components. `kind` is `"telluric"` (the default) or `"gas"`.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| radius | number | 1e6 | In metres |
+| seed | number | 0 | Decides the ground |
+| kind | string | "telluric" | `"gas"` is a banded ball with no ground |
+| spin | object | — | `{ period, tilt, angle }`: seconds per turn, the tilt of the axis in radians, and the turn at time zero |
+| terrain | object | — | `{ continentsFrequency, continentsFragmentation, continentBaseHeight, mountainsFrequency, bumpsFrequency, maxMountainHeight, maxBumpHeight }`, the shape of the ground; the ground is a function of direction, so that it is the same however it is seen |
+| ocean | object | — | `{ depth, shallow, deep, waves }`: the sea level above the lowest ground, the two colours, and a ripple texture |
+| atmosphere | object | — | `{ height, density, rayleigh, mie, color }`: how deep the air is, how thick, the optical depth straight up of each colour, and the haze |
+| clouds | object | — | `{ height, coverage, frequency }` |
+| rings | object | — | `{ innerRadius, outerRadius, ice, dust, seed, frequency }` |
+| palette | object | — | A gas world's bands: `{ color1, color2, color3, sharpness }` |
+| warmth | number | 0.5 | How far from the poles it is cold |
+| textures | object | — | `{ grass, rock, sand, ice }`: paths of the pictures the ground is made of (low ground, steep or high ground, shores, snow). Where one is absent the ground in that kind of place is a plain colour |
+| tile | number | 14 | How many metres one repeat of a ground picture covers when seen close |
+| tint | color | [1,1,1] | Multiplies the colour of the ground |
+| barren | number | 0 (1 where there is no atmosphere) | 0 to 1: how much of the ground that would be grass is bare dust instead |
+| detail | number | 2.4 | How near the viewer must be, in pieces' sizes, for a piece to be made finer |
+| maxLevel | integer | 15 | The finest a piece may be made |
+
+**state**
+
+| Field | Type | Meaning |
+|---|---|---|
+| altitude | number | Of the viewer above the ground or the sea, whichever is higher, in metres |
+| height | number | Of the ground beneath the viewer above the lowest ground |
+| surface | number | The distance from the centre to the ground or sea beneath the viewer |
+| up | vec3 | Away from the centre, in the planet's own frame (it turns with the planet) |
+| latitude, longitude | number | In radians |
+| chunks, queued | integer | How many pieces are made, and how many are wanted and not yet made |
 
 ## 2.4 - Scripts
 
