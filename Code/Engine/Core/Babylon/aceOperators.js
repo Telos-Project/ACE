@@ -449,6 +449,437 @@
 		return record != null ? context.meta.nodes[record.entityKey] : null;
 	};
 
+	/*
+
+		How much of a mesh, and of every mesh under it, can be seen. A mesh's own
+		visibility is not enough: a PBR material loaded with a model is opaque, and
+		does not draw translucent for it. The material is told as well, and put
+		back exactly as it was when the mesh is whole again. Depth is still written
+		while translucent, so that a body does not show its own far side through
+		its near one.
+
+	*/
+	const fade = (meshes, value) => {
+
+		meshes.forEach(target => {
+
+			if(target.visibility !== undefined)
+				target.visibility = value;
+
+			let material = target.material;
+
+			if(material == null || material.alpha === undefined)
+				return;
+
+			if(material.__aceFade === undefined) {
+
+				material.__aceFade = {
+					mode: material.transparencyMode,
+					depth: material.forceDepthWrite
+				};
+			}
+
+			if(value < 1) {
+
+				material.alpha = value;
+
+				if(material.transparencyMode !== undefined)
+					material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+
+				material.forceDepthWrite = true;
+
+				/*
+
+					A PBR material adds its specular and its reflection of the
+					environment on top of its alpha, so that glass still shines.
+					A body that is fading out is not glass: left on, the shine
+					is all that remains of it, and over a bright sea or sky it
+					turns white instead of clear.
+
+				*/
+				if(material.useRadianceOverAlpha !== undefined) {
+
+					material.useRadianceOverAlpha = false;
+					material.useSpecularOverAlpha = false;
+				}
+
+			} else {
+
+				if(material.useRadianceOverAlpha !== undefined) {
+
+					material.useRadianceOverAlpha = true;
+					material.useSpecularOverAlpha = true;
+				}
+
+				material.alpha = 1;
+				material.transparencyMode = material.__aceFade.mode;
+				material.forceDepthWrite = material.__aceFade.depth;
+			}
+		});
+	};
+
+	/*
+
+		The finish: what is done to the picture after it is drawn. A pipeline
+		for bloom (the glow round anything much brighter than its surroundings)
+		and edge smoothing, then one pass of grading: a filmic tone curve in
+		place of a hard clip, shadows leaning cool and highlights warm, a little
+		more colour, a slight vignette, a touch of grain. It is stated in
+		`world.post.finish`, applies to whatever camera is active, and is made
+		again if the camera is replaced.
+
+		Everything in the scene is drawn in display colours, so the pass takes
+		them to linear light, shapes them, and brings them back.
+
+	*/
+	const GRADE_FRAGMENT = `
+		precision highp float;
+		varying vec2 vUV;
+		uniform sampler2D textureSampler;
+		uniform vec3 g1;
+		uniform vec3 g2;
+		uniform vec3 shadowTint;
+		uniform vec3 highlightTint;
+		uniform vec2 texel;
+
+		vec3 aces(vec3 x) {
+			return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+		}
+
+		float hash(vec2 p) {
+			return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+		}
+
+		void main(void) {
+			vec3 c = texture2D(textureSampler, vUV).rgb;
+
+			// a little sharpening, from the four neighbours
+			vec3 blur = (texture2D(textureSampler, vUV + vec2(texel.x, 0.0)).rgb + texture2D(textureSampler, vUV - vec2(texel.x, 0.0)).rgb +
+				texture2D(textureSampler, vUV + vec2(0.0, texel.y)).rgb + texture2D(textureSampler, vUV - vec2(0.0, texel.y)).rgb) * 0.25;
+			c = clamp(c + (c - blur) * g2.z, 0.0, 1.0);
+
+			vec3 lin = pow(c, vec3(2.2)) * g1.x;
+			vec3 d = pow(aces(lin), vec3(1.0 / 2.2));
+
+			float l = dot(d, vec3(0.299, 0.587, 0.114));
+			d *= mix(shadowTint, highlightTint, smoothstep(0.12, 0.85, l));
+			d = mix(vec3(l), d, g1.y);
+			d = (d - 0.5) * g1.z + 0.5;
+
+			vec2 q = vUV - 0.5;
+			d *= 1.0 - dot(q, q) * g2.x * 2.2;
+			d += (hash(vUV * 1000.0 + fract(g2.y)) - 0.5) * 0.02 * step(0.001, g2.x);
+
+			gl_FragColor = vec4(clamp(d, 0.0, 1.0), 1.0);
+		}
+	`;
+
+	const finishing = (context, instance) => {
+
+		let scene = context.meta.scene;
+		let camera = scene.activeCamera;
+		let spec = instance.data.post != null ? instance.data.post.finish : null;
+		let state = context.meta.finish;
+
+		/*
+
+			Not inside a headset session: the pipeline is built on the
+			session's own cameras and the output is the session's framebuffer,
+			where a full-resolution chain of passes is both the most expensive
+			thing in the frame and, as a render target of the wrong size, a
+			source of GL errors. The finish returns when the session ends.
+
+		*/
+		let inSession = context.meta.xr != null && context.meta.xr.baseExperience != null &&
+			context.meta.xr.baseExperience.state === BABYLON.WebXRState.IN_XR;
+
+		if(inSession)
+			spec = null;
+
+		let signature = JSON.stringify(spec);
+
+		if(state != null && state.camera === camera && state.signature === signature)
+			return;
+
+		if(state != null) {
+
+			if(state.pipeline != null)
+				state.pipeline.dispose();
+
+			if(state.grade != null)
+				state.grade.dispose();
+
+			context.meta.finish = null;
+		}
+
+		if(camera == null || !isObject(spec) || !hasDOM)
+			return;
+
+		let pipeline = null;
+
+		if(isObject(spec.bloom) || spec.fxaa === true) {
+
+			pipeline = new BABYLON.DefaultRenderingPipeline(
+				"aceFinish", false, scene, [camera]
+			);
+
+			pipeline.imageProcessingEnabled = false;
+			pipeline.fxaaEnabled = spec.fxaa === true;
+
+			if(isObject(spec.bloom)) {
+
+				pipeline.bloomEnabled = true;
+				pipeline.bloomThreshold = spec.bloom.threshold != null ? spec.bloom.threshold : 0.85;
+				pipeline.bloomWeight = spec.bloom.weight != null ? spec.bloom.weight : 0.3;
+				pipeline.bloomKernel = spec.bloom.kernel != null ? spec.bloom.kernel : 64;
+				pipeline.bloomScale = spec.bloom.scale != null ? spec.bloom.scale : 0.5;
+			}
+		}
+
+		let grade = null;
+
+		if(isObject(spec.grade)) {
+
+			let g = spec.grade;
+
+			if(BABYLON.Effect.ShadersStore.aceGradePixelShader == null)
+				BABYLON.Effect.ShadersStore.aceGradePixelShader = GRADE_FRAGMENT;
+
+			grade = new BABYLON.PostProcess(
+				"aceGrade", "aceGrade",
+				["g1", "g2", "shadowTint", "highlightTint", "texel"], null, 1.0, camera
+			);
+
+			grade.onApply = effect => {
+
+				effect.setFloat3("g1",
+					g.exposure != null ? g.exposure : 1.1,
+					g.saturation != null ? g.saturation : 1.1,
+					g.contrast != null ? g.contrast : 1.05
+				);
+
+				effect.setFloat3("g2",
+					g.vignette != null ? g.vignette : 0.2,
+					(root.performance.now() % 1000) / 1000,
+					g.sharpen != null ? g.sharpen : 0.35
+				);
+
+				let shadows = Array.isArray(g.shadows) ? g.shadows : [0.93, 1, 1.05];
+				let highlights = Array.isArray(g.highlights) ? g.highlights : [1.05, 1, 0.94];
+
+				effect.setFloat3("shadowTint", shadows[0], shadows[1], shadows[2]);
+				effect.setFloat3("highlightTint", highlights[0], highlights[1], highlights[2]);
+				effect.setFloat2("texel", 1 / grade.width, 1 / grade.height);
+			};
+		}
+
+		context.meta.finish = { camera, pipeline, grade, signature };
+	};
+
+	/*
+
+		Precise contact. A bounding box says a building is a block; a body
+		walking into one needs to find the doorway. For a still mesh (not
+		skinned, not drawn as instances) the triangles are taken into world space
+		once and sorted into a grid of cells, and a query for what is within a
+		radius of a point looks only at the triangles in the cells it touches and
+		answers with the nearest point on the nearest of them. The table is made
+		again if the mesh has moved.
+
+	*/
+	const PRECISE_CELL = 6;
+
+	const preciseTable = mesh => {
+
+		let world = mesh.getWorldMatrix().m;
+		let signature = world.join(",");
+		let table = mesh.__acePrecise;
+
+		if(table != null && table.signature === signature)
+			return table;
+
+		let source = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+		let indices = mesh.getIndices();
+
+		if(source == null || indices == null)
+			return null;
+
+		let count = source.length / 3;
+		let positions = new Float32Array(source.length);
+
+		for(let index = 0; index < count; index++) {
+
+			let x = source[index * 3], y = source[index * 3 + 1], z = source[index * 3 + 2];
+
+			positions[index * 3] = x * world[0] + y * world[4] + z * world[8] + world[12];
+			positions[index * 3 + 1] = x * world[1] + y * world[5] + z * world[9] + world[13];
+			positions[index * 3 + 2] = x * world[2] + y * world[6] + z * world[10] + world[14];
+		}
+
+		let cells = new Map();
+
+		for(let tri = 0; tri < indices.length; tri += 3) {
+
+			let a = indices[tri] * 3, b = indices[tri + 1] * 3, c = indices[tri + 2] * 3;
+			let lo = [0, 0, 0], hi = [0, 0, 0];
+
+			for(let axis = 0; axis < 3; axis++) {
+
+				let p = positions[a + axis], q = positions[b + axis], r = positions[c + axis];
+
+				lo[axis] = Math.floor(Math.min(p, q, r) / PRECISE_CELL);
+				hi[axis] = Math.floor(Math.max(p, q, r) / PRECISE_CELL);
+			}
+
+			for(let i = lo[0]; i <= hi[0]; i++) {
+
+				for(let j = lo[1]; j <= hi[1]; j++) {
+
+					for(let k = lo[2]; k <= hi[2]; k++) {
+
+						let key = i + "," + j + "," + k;
+						let list = cells.get(key);
+
+						if(list == null)
+							cells.set(key, list = []);
+
+						list.push(tri);
+					}
+				}
+			}
+		}
+
+		return mesh.__acePrecise = {
+			signature, positions, indices, cells,
+			seen: new Int32Array(Math.ceil(indices.length / 3) + 1), stamp: 0
+		};
+	};
+
+	/* The point of triangle abc nearest to p (Ericson, Real-Time Collision Detection 5.1.5). */
+	const nearestOnTriangle = (p, a, b, c, out) => {
+
+		let abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+		let acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
+		let apx = p[0] - a[0], apy = p[1] - a[1], apz = p[2] - a[2];
+		let d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+
+		const put = (x, y, z) => { out[0] = x; out[1] = y; out[2] = z; return out; };
+
+		if(d1 <= 0 && d2 <= 0)
+			return put(a[0], a[1], a[2]);
+
+		let bpx = p[0] - b[0], bpy = p[1] - b[1], bpz = p[2] - b[2];
+		let d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+
+		if(d3 >= 0 && d4 <= d3)
+			return put(b[0], b[1], b[2]);
+
+		let vc = d1 * d4 - d3 * d2;
+
+		if(vc <= 0 && d1 >= 0 && d3 <= 0) {
+
+			let v = d1 / (d1 - d3);
+
+			return put(a[0] + abx * v, a[1] + aby * v, a[2] + abz * v);
+		}
+
+		let cpx = p[0] - c[0], cpy = p[1] - c[1], cpz = p[2] - c[2];
+		let d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+
+		if(d6 >= 0 && d5 <= d6)
+			return put(c[0], c[1], c[2]);
+
+		let vb = d5 * d2 - d1 * d6;
+
+		if(vb <= 0 && d2 >= 0 && d6 <= 0) {
+
+			let w = d2 / (d2 - d6);
+
+			return put(a[0] + acx * w, a[1] + acy * w, a[2] + acz * w);
+		}
+
+		let va = d3 * d6 - d5 * d4;
+
+		if(va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
+
+			let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+
+			return put(b[0] + (c[0] - b[0]) * w, b[1] + (c[1] - b[1]) * w, b[2] + (c[2] - b[2]) * w);
+		}
+
+		let denominator = 1 / (va + vb + vc);
+		let v = vb * denominator, w = vc * denominator;
+
+		return put(a[0] + abx * v + acx * w, a[1] + aby * v + acy * w, a[2] + abz * v + acz * w);
+	};
+
+	/* Whether a mesh can answer precisely, and if so the nearest point of it within `radius` of `centre`: { point, distance } or null. */
+	const preciseCapable = mesh =>
+		mesh.skeleton == null && !(mesh.thinInstanceCount > 0) &&
+		mesh.getTotalIndices != null && mesh.getTotalIndices() > 0 &&
+		mesh.getTotalIndices() <= 1200000;
+
+	const preciseNearest = (mesh, centre, radius) => {
+
+		let table = preciseTable(mesh);
+
+		if(table == null)
+			return null;
+
+		let { positions, indices, cells } = table;
+		let p = [centre.x, centre.y, centre.z];
+		let lo = p.map(v => Math.floor((v - radius) / PRECISE_CELL));
+		let hi = p.map(v => Math.floor((v + radius) / PRECISE_CELL));
+		let best = null, bestSquared = radius * radius;
+		let a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0], q = [0, 0, 0];
+
+		table.stamp++;
+
+		for(let i = lo[0]; i <= hi[0]; i++) {
+
+			for(let j = lo[1]; j <= hi[1]; j++) {
+
+				for(let k = lo[2]; k <= hi[2]; k++) {
+
+					let list = cells.get(i + "," + j + "," + k);
+
+					if(list == null)
+						continue;
+
+					for(let n = 0; n < list.length; n++) {
+
+						let tri = list[n], id = tri / 3;
+
+						if(table.seen[id] === table.stamp)
+							continue;
+
+						table.seen[id] = table.stamp;
+
+						for(let axis = 0; axis < 3; axis++) {
+
+							a[axis] = positions[indices[tri] * 3 + axis];
+							b[axis] = positions[indices[tri + 1] * 3 + axis];
+							c[axis] = positions[indices[tri + 2] * 3 + axis];
+						}
+
+						nearestOnTriangle(p, a, b, c, q);
+
+						let dx = p[0] - q[0], dy = p[1] - q[1], dz = p[2] - q[2];
+						let squared = dx * dx + dy * dy + dz * dz;
+
+						if(squared <= bestSquared) {
+
+							bestSquared = squared;
+							best = { point: q.slice(), distance: Math.sqrt(squared) };
+						}
+					}
+				}
+			}
+		}
+
+		return best;
+	};
+
 	/* Babylon exposes the audio engine statically, on different classes by version. */
 	const audioEngine = () =>
 		BABYLON.Engine?.audioEngine != null ? BABYLON.Engine.audioEngine :
@@ -724,13 +1155,7 @@
 				context.meta.step = data.step != null ? data.step : 1 / 60;
 				context.meta.accumulator = 0;
 
-				if(data.fog != null) {
-
-					scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
-					scene.fogColor = color3(data.fog.color, [1, 1, 1]);
-					scene.fogStart = data.fog.near != null ? data.fog.near : 10;
-					scene.fogEnd = data.fog.far != null ? data.fog.far : 100;
-				}
+				operators[0].atmosphere(context, instance);
 
 				let capabilities = ["audio"].concat(
 					physics ? ["physics"] : []
@@ -757,7 +1182,103 @@
 				return { scene, skybox: null };
 			},
 
-			onChange: (context, instance) => {
+			/*
+
+				The haze, the grading and the sky's visibility, which a document
+				changes as the viewer passes from air to water or from day to
+				night. They are applied in place: rebuilding the world to change
+				the fog would rebuild the sky with it.
+
+			*/
+			atmosphere: (context, instance) => {
+
+				let scene = context.meta.scene;
+				let data = instance.data;
+
+				if(data.fog != null) {
+
+					scene.fogColor = color3(data.fog.color, [1, 1, 1]);
+
+					/*
+
+						A fog with a density is exponential-squared, which is what
+						distance haze over a large landscape wants; one with near and
+						far is linear, as before.
+
+					*/
+					if(data.fog.density != null) {
+
+						scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+						scene.fogDensity = data.fog.density;
+
+					} else {
+
+						scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+						scene.fogStart = data.fog.near != null ? data.fog.near : 10;
+						scene.fogEnd = data.fog.far != null ? data.fog.far : 100;
+					}
+				}
+
+				/* Optional colour grading, honoured by every material using image processing. */
+				if(isObject(data.post)) {
+
+					let processing = scene.imageProcessingConfiguration;
+
+					processing.toneMappingEnabled = data.post.tonemap === "aces";
+
+					if(data.post.tonemap === "aces") {
+
+						processing.toneMappingType =
+							BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+					}
+
+					processing.exposure = data.post.exposure != null ? data.post.exposure : 1;
+					processing.contrast = data.post.contrast != null ? data.post.contrast : 1;
+
+					if(data.post.vignette != null) {
+
+						processing.vignetteEnabled = true;
+						processing.vignetteWeight = data.post.vignette;
+					}
+				}
+
+				let skybox = instance.object != null ? instance.object.skybox : null;
+
+				if(skybox != null)
+					skybox.setEnabled(data.sky !== false);
+
+				/* With no sky to show, what is behind everything is the haze. */
+				if(data.sky === false && data.fog != null) {
+
+					let c = Array.isArray(data.fog.color) ? data.fog.color : [0, 0, 0];
+
+					scene.clearColor = new BABYLON.Color4(c[0], c[1], c[2], 1);
+
+				} else {
+
+					scene.clearColor = color(data.background, [0, 0, 0, 1]);
+				}
+			},
+
+			onChange: (context, instance, previous) => {
+
+				const rest = data => {
+
+					let copy = Object.assign({ }, data);
+
+					delete copy.fog;
+					delete copy.post;
+					delete copy.sky;
+
+					return JSON.stringify(copy);
+				};
+
+				if(previous != null && previous.data != null &&
+					rest(previous.data) === rest(instance.data)) {
+
+					operators[0].atmosphere(context, instance);
+					return;
+				}
 
 				operators[0].onDestroy(context, instance);
 
@@ -772,6 +1293,8 @@
 
 			*/
 			onUpdate: (context, instance) => {
+
+				finishing(context, instance);
 
 				let background = instance.data.background;
 
@@ -795,8 +1318,43 @@
 				);
 
 				/* The sky is scenery, not geometry: it must not answer rays. */
-				if(instance.object.skybox != null)
+				if(instance.object.skybox != null) {
+
 					instance.object.skybox.isPickable = false;
+
+					/*
+
+						The sky is drawn at infinite distance inside a small box. If it
+						writes depth, everything beyond the box's radius is behind it
+						and never appears.
+
+					*/
+					if(instance.object.skybox.material != null)
+						instance.object.skybox.material.disableDepthWrite = true;
+
+					/*
+
+						Babylon draws the sky box last among the opaque meshes (to
+						spare the pixels the scene already covers), and tests it
+						against depth: its faces, a few hundred metres off, then paint
+						over anything farther than that, so an island a kilometre away
+						was replaced by sky and cloud, and a building appeared only
+						once it was inside the box. The sky writes no depth, so it is
+						drawn first, and everything is then drawn over it.
+
+					*/
+					let sky = instance.object.skybox;
+
+					scene.setRenderingOrder(0, (a, b) => {
+
+						let skyA = a.getMesh() === sky, skyB = b.getMesh() === sky;
+
+						if(skyA !== skyB)
+							return skyA ? -1 : 1;
+
+						return a.getMesh()._distanceToCamera - b.getMesh()._distanceToCamera;
+					});
+				}
 
 				scene.environmentTexture = texture;
 			},
@@ -807,6 +1365,17 @@
 					instance.object.skybox != null) {
 
 					instance.object.skybox.dispose();
+				}
+
+				if(context.meta.finish != null) {
+
+					if(context.meta.finish.pipeline != null)
+						context.meta.finish.pipeline.dispose();
+
+					if(context.meta.finish.grade != null)
+						context.meta.finish.grade.dispose();
+
+					context.meta.finish = null;
 				}
 
 				context.meta.scene.environmentTexture = null;
@@ -869,8 +1438,30 @@
 					presenting: false
 				});
 
-				if(data.xr != null)
-					operators[1].requestXR(context, instance, object);
+				/*
+
+					Babylon throws at once, not through the promise, when
+					immersive sessions are requested from an origin it does not
+					consider secure. That must cost the document its headset and
+					nothing else: a camera whose creation fails is created
+					again on every frame.
+
+				*/
+				if(data.xr != null) {
+
+					try {
+
+						operators[1].requestXR(context, instance, object);
+
+					} catch(error) {
+
+						context.errors.push({
+							type: "camera",
+							hook: "requestXR",
+							message: error.message
+						});
+					}
+				}
 
 				return object;
 			},
@@ -986,7 +1577,21 @@
 						not asking for teleportation.
 
 					*/
-					disableTeleportation: data.xr.teleport !== true
+					disableTeleportation: data.xr.teleport !== true,
+
+					/*
+
+						A headset draws the scene twice, at a resolution the
+						device chooses; a document that cannot afford that
+						asks for a fraction of it (1 is the device's own).
+
+					*/
+					outputCanvasOptions: data.xr.scale != null ? {
+						canvasOptions: {
+							antialias: true, depth: true, stencil: true, alpha: true,
+							framebufferScaleFactor: data.xr.scale
+						}
+					} : undefined
 
 				}).then(experience => {
 
@@ -1053,6 +1658,50 @@
 					BABYLON.WebXRState.IN_XR;
 
 				let state = { presenting };
+
+				/*
+
+					A session has its own cameras and its own depth buffer, drawn
+					with the projection the device supplies, which is an
+					ordinary one. A reversed depth buffer (cleared to 0, tested
+					greater-or-equal) is not what that projection writes, and
+					everything is then drawn out of order, or not at all. It is
+					put aside while presenting and put back afterwards.
+
+					The near plane is also raised, since an ordinary 24-bit
+					depth buffer gets its precision from it: the document may
+					say how far in a headset is drawn from and to (`xr.near`,
+					`xr.far`).
+
+				*/
+				let engine = context.meta.engine;
+
+				if(presenting) {
+
+					if(engine.useReverseDepthBuffer) {
+
+						engine.useReverseDepthBuffer = false;
+						context.meta.reverseHeld = true;
+					}
+
+					let head = xr.baseExperience.camera;
+
+					if(head != null) {
+
+						let near = instance.data.xr.near, far = instance.data.xr.far;
+
+						if(near != null && head.minZ !== near)
+							head.minZ = near;
+
+						if(far != null && head.maxZ !== far)
+							head.maxZ = far;
+					}
+
+				} else if(context.meta.reverseHeld) {
+
+					engine.useReverseDepthBuffer = true;
+					context.meta.reverseHeld = false;
+				}
 
 				if(presenting && xr.baseExperience.camera != null) {
 
@@ -1236,6 +1885,13 @@
 
 				light.diffuse = color3(data.color, [1, 1, 1]);
 				light.intensity = data.intensity != null ? data.intensity : 1;
+
+				/* A light can be switched off without being removed: `on: false`. (Switching its entity off is not the same: a light's state is not re-read from its parents.) */
+				light.setEnabled(data.on !== false);
+
+				/* An ambient light may light the underside differently from the top. */
+				if(data.ground != null && light.groundColor !== undefined)
+					light.groundColor = color3(data.ground, [0, 0, 0]);
 
 				if(data.range != null && light.range !== undefined)
 					light.range = data.range;
@@ -1583,9 +2239,23 @@
 
 						if(object.owned[slot] == null) {
 
-							object.owned[slot] = new BABYLON.Texture(
-								value, context.meta.scene
-							);
+							/* Pixel art is sampled as it is: no blending of neighbours, and no smaller copies. */
+							if(data.filter === "nearest") {
+
+								object.owned[slot] = new BABYLON.Texture(
+									value, context.meta.scene, true, true,
+									BABYLON.Texture.NEAREST_SAMPLINGMODE
+								);
+
+								object.owned[slot].wrapU = object.owned[slot].wrapV =
+									BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+							} else {
+
+								object.owned[slot] = new BABYLON.Texture(
+									value, context.meta.scene
+								);
+							}
 						}
 
 						texture = object.owned[slot];
@@ -1594,6 +2264,13 @@
 					if(texture != null) {
 
 						material[target] = texture;
+
+						/* A picture with transparency in it, rather than a flat colour with an alpha. */
+						if(slot === "base" && data.alpha === "texture") {
+
+							texture.hasAlpha = true;
+							material.useAlphaFromAlbedoTexture = true;
+						}
 
 						if(Array.isArray(data.region)) {
 
@@ -1618,6 +2295,16 @@
 						}
 					}
 				});
+
+				/* Optional refinements of the surface. */
+				if(data.zOffset != null)
+					material.zOffset = data.zOffset;
+
+				if(data.bump != null && material.bumpTexture != null)
+					material.bumpTexture.level = data.bump;
+
+				if(data.antialias === true)
+					material.enableSpecularAntiAliasing = true;
 
 				ace.setState(context, instance.record, { loaded });
 			},
@@ -2210,7 +2897,28 @@
 						target.receiveShadows =
 							data.shadow?.receive !== false;
 					}
+
+					/*
+
+						Translucent surfaces are drawn far to near, measured to
+						the middle of each one, which puts a wide panel in front
+						of text lying across its corner. `order` (default 0)
+						sets the layer first: a higher one is drawn later, over
+						every lower one, and only those of a layer are sorted
+						by distance.
+
+					*/
+					target.alphaIndex = data.order != null ? data.order : 0;
+
+					/* An overlay (order 10 and above) is drawn in a layer of its own, over everything, with a fresh depth buffer. */
+					if(data.order != null && data.order >= 10)
+						target.renderingGroupId = 1;
+
 				});
+
+				/* How much of it can be seen: 1 whole, 0 gone. Anything under 1 is drawn translucent. */
+				if(data.opacity != null)
+					fade(meshes, data.opacity);
 
 				if(data.billboard != null && data.billboard !== "none") {
 
@@ -2283,7 +2991,37 @@
 					mesh.material = wanted;
 			},
 
-			onChange: (context, instance) => {
+			onChange: (context, instance, previous) => {
+
+				/*
+
+					Fading something out must not reload it: when only its
+					opacity has changed the meshes are simply told.
+
+				*/
+				const rest = data => {
+
+					let copy = Object.assign({ }, data);
+
+					delete copy.opacity;
+
+					return JSON.stringify(copy);
+				};
+
+				if(previous != null && previous.data != null &&
+					instance.object.mesh != null &&
+					rest(previous.data) === rest(instance.data)) {
+
+					let mesh = instance.object.mesh;
+					let value = instance.data.opacity != null ?
+						instance.data.opacity : 1;
+
+					fade([mesh].concat(
+						mesh.getChildMeshes != null ? mesh.getChildMeshes() : [ ]
+					), value);
+
+					return;
+				}
 
 				operators[5].onDestroy(context, instance);
 				instance.object = operators[5].onCreate(context, instance);
@@ -2309,6 +3047,18 @@
 		{	// text --------------------------------------------------------
 			type: "text",
 
+			/*
+
+				Text is drawn on a canvas and shown on a plane. A line of text is
+				`resolution` pixels high however large it is drawn, and the plane is
+				as wide as `width` says, so the glyphs are sized by the plane and
+				the canvas follows it. With `wrap` a long string is broken into
+				lines to fit the width, and a newline always starts one. The plane
+				grows downward as lines are added; `anchor` says which part of it
+				sits at the entity: "center" (the default), or any of "top",
+				"bottom", "left", "right" and the corner combinations.
+
+			*/
 			onCreate: (context, instance) => {
 
 				let scene = context.meta.scene;
@@ -2317,14 +3067,82 @@
 				let name = instance.path.join(".");
 
 				let size = data.size != null ? data.size : 1;
-				let text = instance.content != null ? instance.content : "";
-				let width = data.width != null ? data.width : text.length * size * 0.6;
+				let leading = data.leading != null ? data.leading : 1.2;
+				let text = instance.content != null ? String(instance.content) : "";
+				let width = Math.max(
+					data.width != null ? data.width : text.length * size * 0.6, 0.001
+				);
+
+				let lineHeight = data.resolution != null ? data.resolution : 128;
+				let canvasWidth = Math.min(4096, Math.max(64, Math.round(
+					lineHeight * width / (size * leading)
+				)));
+
+				let font = data.font != null ?
+					data.font : "bold " + Math.round(lineHeight * 0.56) + "px sans-serif";
+
+				let align = data.align === "left" || data.align === "right" ?
+					data.align : "center";
+
+				let padding = Math.round(lineHeight * 0.18);
+				let lines = text.split("\n");
+				let measure = null;
+
+				if(hasDOM) {
+
+					let probe = root.document.createElement("canvas").getContext("2d");
+
+					probe.font = font;
+					measure = string => probe.measureText(string).width;
+				}
+
+				if(data.wrap === true && measure != null) {
+
+					let wrapped = [];
+
+					lines.forEach(line => {
+
+						let current = "";
+
+						line.split(" ").forEach(word => {
+
+							let attempt = current === "" ? word : current + " " + word;
+
+							if(current !== "" && measure(attempt) > canvasWidth - padding * 2) {
+
+								wrapped.push(current);
+								current = word;
+
+							} else {
+
+								current = attempt;
+							}
+						});
+
+						wrapped.push(current);
+					});
+
+					lines = wrapped;
+				}
+
+				let rows = Math.max(1, lines.length);
+				let height = size * leading * rows;
 
 				let plane = BABYLON.MeshBuilder.CreatePlane(name, {
 					width: Math.max(width, 0.001),
-					height: Math.max(size * (data.leading != null ? data.leading : 1.2), 0.001),
+					height: Math.max(height, 0.001),
 					sideOrientation: BABYLON.Mesh.DOUBLESIDE
 				}, scene);
+
+				let anchor = typeof data.anchor === "string" ? data.anchor : "center";
+
+				plane.position.set(
+					anchor.includes("left") ? width / 2 :
+						anchor.includes("right") ? -width / 2 : 0,
+					anchor.includes("top") ? -height / 2 :
+						anchor.includes("bottom") ? height / 2 : 0,
+					0
+				);
 
 				plane.parent = node;
 
@@ -2333,7 +3151,16 @@
 					plane.billboardMode = data.billboard === "y" ?
 						BABYLON.Mesh.BILLBOARDMODE_Y :
 						BABYLON.Mesh.BILLBOARDMODE_ALL;
+
+					/* A billboard turns its back to the viewer, so what it shows is mirrored back. */
+					plane.scaling.x = -1;
+					plane.position.x = -plane.position.x;
 				}
+
+				plane.alphaIndex = data.order != null ? data.order : 0;
+
+				if(data.order != null && data.order >= 10)
+					plane.renderingGroupId = 1;
 
 				own(plane, instance.entityKey);
 
@@ -2349,22 +3176,36 @@
 				if(hasDOM) {
 
 					let texture = new BABYLON.DynamicTexture(name, {
-						width: 1024, height: 128
+						width: canvasWidth, height: lineHeight * rows
 					}, scene, true);
 
 					let base = color(data.color, [1, 1, 1, 1]);
+					let canvas = texture.getContext();
 
-					texture.drawText(
-						text,
-						null,
-						null,
-						"bold 72px sans-serif",
-						"#" + [base.r, base.g, base.b].map(channel =>
-							Math.round(channel * 255).toString(16).padStart(2, "0")
-						).join(""),
-						"transparent",
-						true
+					canvas.clearRect(0, 0, canvasWidth, lineHeight * rows);
+					canvas.font = font;
+					canvas.textBaseline = "middle";
+					canvas.textAlign = align;
+					canvas.fillStyle = "rgba(" + [base.r, base.g, base.b].map(
+						channel => Math.round(channel * 255)
+					).join(",") + "," + base.a + ")";
+
+					if(data.shadow !== false) {
+
+						canvas.shadowColor = "rgba(0,0,0,0.85)";
+						canvas.shadowBlur = Math.round(lineHeight * 0.07);
+						canvas.shadowOffsetX = canvas.shadowOffsetY =
+							Math.max(1, Math.round(lineHeight * 0.02));
+					}
+
+					let x = align === "left" ? padding :
+						align === "right" ? canvasWidth - padding : canvasWidth / 2;
+
+					lines.forEach((line, index) =>
+						canvas.fillText(line, x, lineHeight * (index + 0.5))
 					);
+
+					texture.update(true);
 
 					let material = new BABYLON.StandardMaterial(name, scene);
 
@@ -2372,6 +3213,8 @@
 					material.emissiveTexture = texture;
 					material.opacityTexture = texture;
 					material.backFaceCulling = false;
+					material.disableLighting = true;
+					material.fogEnabled = false;
 
 					plane.material = material;
 
@@ -2381,9 +3224,10 @@
 
 				ace.setState(context, instance.record, {
 					loaded: true,
+					lines: rows,
 					bounds: {
-						min: [-width / 2, -size / 2, 0],
-						max: [width / 2, size / 2, 0]
+						min: [-width / 2, -height / 2, 0],
+						max: [width / 2, height / 2, 0]
 					}
 				});
 
@@ -2990,9 +3834,30 @@
 				if(clip == null)
 					return;
 
-				let group = scene.animationGroups.find(
+				/*
+
+					Every copy of a model brings groups with the same names, so a lookup
+					by name across the scene always finds the first copy's. The entity's
+					own mesh is asked first.
+
+				*/
+				let sibling = siblingInstance(context, instance, "mesh");
+				let own = sibling?.object?.content?.animationGroups;
+
+				/* A model still on its way has no groups yet, and the scene's belong to other copies. */
+				if(sibling != null && sibling.source != null && own == null)
+					return;
+
+				let group = (own != null ? own : scene.animationGroups).find(
 					candidate => candidate.name === clip
 				);
+
+				if(group == null && own != null) {
+
+					group = scene.animationGroups.find(
+						candidate => candidate.name === clip
+					);
+				}
 
 				if(group == null)
 					return;
@@ -3004,13 +3869,52 @@
 					apart.
 
 				*/
-				if(object.group != null && object.group !== group)
-					object.group.stop();
+				if(object.group != null && object.group !== group) {
+
+					/*
+
+						With `blend` (seconds) the clip being replaced goes on playing
+						while the new one is mixed in over it, and is stopped when the
+						mix is whole. A switch made during a mix completes that one
+						first.
+
+					*/
+					let blend = instance.data.blend != null ? instance.data.blend : 0;
+
+					if(object.fading != null) {
+
+						if(object.fading.out !== group)
+							object.fading.out.stop();
+
+						object.fading = null;
+					}
+
+					if(blend > 0 && object.group.isPlaying === true)
+						object.fading = { out: object.group, start: performance.now(), duration: blend * 1000 };
+					else
+						object.group.stop();
+				}
 
 				object.group = group;
 
 				group.speedRatio = instance.data.speed != null ?
 					instance.data.speed : 1;
+
+				/*
+
+					With autoplay the selected clip plays whenever it is bound, which is
+					what a document wants when it picks a clip by name and has no moment
+					at which to issue the command.
+
+				*/
+				if(instance.data.autoplay === true && object.autoplayed !== group) {
+
+					object.autoplayed = group;
+					group.play(instance.data.loop !== false);
+
+					if(object.fading != null)
+						group.setWeightForAllAnimatables(0);
+				}
 
 				if(instance.data.weight != null && group.setWeightForAllAnimatables != null)
 					group.setWeightForAllAnimatables(instance.data.weight);
@@ -3031,6 +3935,9 @@
 				if(field === "play") {
 
 					group.play(instance.data.loop !== false);
+
+					if(instance.object.fading != null)
+						group.setWeightForAllAnimatables(0);
 
 				} else if(field === "stop") {
 
@@ -3056,6 +3963,25 @@
 					return;
 				}
 
+				let fade = instance.object.fading;
+
+				if(fade != null) {
+
+					let t = Math.min(1, (performance.now() - fade.start) / fade.duration);
+
+					if(t >= 1) {
+
+						fade.out.stop();
+						instance.object.fading = null;
+						group.setWeightForAllAnimatables(-1);
+
+					} else {
+
+						/* the new clip is mixed over the old one, which stays whole until it is stopped */
+						group.setWeightForAllAnimatables(t * t * (3 - 2 * t));
+					}
+				}
+
 				ace.setState(context, instance.record, {
 					playing: group.isPlaying === true,
 					time: group.animatables?.[0]?.masterFrame,
@@ -3066,6 +3992,9 @@
 			},
 
 			onDestroy: (context, instance) => {
+
+				if(instance.object.fading != null)
+					instance.object.fading.out.stop();
 
 				if(instance.object.group != null)
 					instance.object.group.stop();
@@ -3113,22 +4042,38 @@
 				let wanted = Array.isArray(data.tags) ? data.tags :
 					typeof data.tags === "string" ? [data.tags] : null;
 
-				let predicate = wanted == null ? undefined : mesh => {
+				let allowed = null;
+
+				if(wanted != null) {
+
+					let cache = context.meta.tagCache;
+
+					if(cache == null || cache.frame !== context.frame)
+						cache = context.meta.tagCache = { frame: context.frame, sets: new Map() };
+
+					let id = wanted.join("|");
+
+					if(!cache.sets.has(id)) {
+
+						cache.sets.set(id, new Set(
+							context.resolved.entities.filter(
+								entity => entity.tags.some(tag => wanted.includes(tag))
+							).map(entity => entity.key)
+						));
+					}
+
+					allowed = cache.sets.get(id);
+				}
+
+				let predicate = allowed == null ? undefined : mesh => {
 
 					if(mesh.isPickable === false)
 						return false;
 
 					let key = mesh.metadata?.aceEntity;
 
-					if(key == null)
-						return false;
-
-					let entity = context.resolved.entities.find(
-						candidate => candidate.key === key
-					);
-
-					return entity != null &&
-						entity.tags.some(tag => wanted.includes(tag));
+					/* (a predicate replaces Babylon's own check that a mesh is switched on) */
+					return key != null && allowed.has(key) && mesh.isEnabled();
 				};
 
 				const describe = pick => {
@@ -3248,6 +4193,32 @@
 						if(distance > radius)
 							return;
 
+						/* A still mesh answers for its triangles, not for the box round them. */
+						if(preciseCapable(mesh)) {
+
+							let found = preciseNearest(mesh, centre, radius);
+
+							if(found == null)
+								return;
+
+							let away = centre.subtract(new BABYLON.Vector3(
+								found.point[0], found.point[1], found.point[2]
+							));
+							let length = away.length();
+
+							/* On the surface itself there is no direction: up is as good as any, and the walker's push is lateral anyway. */
+							let direction = length > 1e-5 ? away.scale(1 / length) : new BABYLON.Vector3(0, 1, 0);
+
+							hits.push({
+								target: JSON.parse(mesh.metadata.aceEntity),
+								point: found.point.map(v => Math.round(v * 1000) / 1000),
+								normal: array3(direction),
+								distance: found.distance
+							});
+
+							return;
+						}
+
 						let normal;
 
 						if(distance > 1e-6) {
@@ -3304,6 +4275,10 @@
 						});
 					});
 
+					/* Things that are drawn as instances answer from their tables. */
+					if(ace.adapter.collide != null)
+						ace.adapter.collide(context, centre, radius, allowed, hits);
+
 				} else if(type === "ray" || type === "shape") {
 
 					let origin = Array.isArray(data.origin) ?
@@ -3329,10 +4304,45 @@
 
 					if(limit === 1) {
 
-						let hit = describe(scene.pickWithRay(ray, predicate));
+						/* Straight down at the terrain: answered from its height grid, not its triangles. */
+						let fast = allowed != null && ace.adapter.groundAt != null &&
+							type === "ray" && direction.y < -0.999 ?
+							ace.adapter.groundAt(context, origin.x, origin.z, allowed) : null;
 
-						if(hit != null)
-							hits.push(hit);
+						if(fast != null) {
+
+							/* Only a probe that asks (surfaces: "all") pays for the triangles of everything else; most only want the ground. */
+							let terrainKeys = new Set((context.meta.terrains || []).map(entry => entry.key));
+							let other = data.surfaces === "all" ? scene.pickWithRay(ray, mesh =>
+								predicate(mesh) && !terrainKeys.has(mesh.metadata?.aceEntity)
+							) : null;
+							let top = fast.y;
+							let away = origin.y - fast.y;
+
+							/* A bridge, a roof or a floor above the ground answers for itself if it is nearer to the ray's start. */
+							if(other != null && other.hit && other.pickedPoint != null &&
+								other.pickedPoint.y > fast.y) {
+
+								hits.push(describe(other));
+
+							} else if((away >= 0 || data.under === true) && Math.abs(away) <= distance) {
+
+								/* With `under`, a ray that starts below the ground still answers with it, at a negative distance. */
+								hits.push({
+									target: fast.target,
+									point: [origin.x, fast.y, origin.z],
+									normal: fast.normal,
+									distance: away
+								});
+							}
+
+						} else {
+
+							let hit = describe(scene.pickWithRay(ray, predicate));
+
+							if(hit != null)
+								hits.push(hit);
+						}
 
 					} else {
 
@@ -3400,6 +4410,25 @@
 			const on = (name, handler) =>
 				target.addEventListener(name, handler);
 
+			/*
+
+				Keys are heard by the whole page, not by the canvas: a canvas
+				hears them only while it has focus, and focus is lost whenever
+				the pointer is given back (a menu opening) or the page is
+				clicked outside it. A key that moves focus or scrolls the page
+				is kept from doing so.
+
+			*/
+			let keyed = target.ownerDocument != null &&
+				target.ownerDocument.addEventListener != null ?
+				target.ownerDocument : target;
+
+			const onKey = (name, handler) => keyed.addEventListener(name, handler);
+			const KEEP = ["Tab", "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+
+			if(target.setAttribute != null)
+				target.setAttribute("tabindex", "0");
+
 			const gesture = () => {
 
 				input.gesture = true;
@@ -3422,9 +4451,12 @@
 				);
 			}
 
-			on("keydown", event => {
+			onKey("keydown", event => {
 
 				gesture();
+
+				if(KEEP.includes(event.code))
+					event.preventDefault();
 
 				if(!keyboard.digital.includes(event.code)) {
 
@@ -3433,7 +4465,7 @@
 				}
 			});
 
-			on("keyup", event => {
+			onKey("keyup", event => {
 
 				keyboard.digital = keyboard.digital.filter(
 					code => code !== event.code
@@ -3654,6 +4686,31 @@
 							origin: array3(context.meta.ray.origin),
 							direction: array3(context.meta.ray.direction)
 						};
+
+						/*
+
+							The same ray in the frame of the entity the view hangs
+							off, which is the frame a camera-space entity (a menu,
+							a heads-up display) is laid out in. A document aims at
+							its own interface with this, whatever the headset's
+							reference space has been moved to.
+
+						*/
+						let view = viewNode(context);
+
+						if(view != null) {
+
+							view.computeWorldMatrix(true);
+
+							let inverse = BABYLON.Matrix.Invert(view.getWorldMatrix());
+
+							controller.local = {
+								origin: array3(BABYLON.Vector3.TransformCoordinates(
+									context.meta.ray.origin, inverse)),
+								direction: array3(BABYLON.Vector3.TransformNormal(
+									context.meta.ray.direction, inverse))
+							};
+						}
 					}
 				});
 			}
@@ -3738,6 +4795,12 @@
 
 		input,
 		operators,
+
+		/* Shared with operator files that extend the adapter (aceWorld.js). */
+		helpers: {
+			nodeFor, own, vector, quaternion, scale, color, color3,
+			recordFor, siblingInstance, array3, array4
+		},
 
 		/* Passed to any engine the adapter builds for itself. */
 		engineOptions: {
@@ -3852,6 +4915,7 @@
 			scale = timeData.scale != null ? timeData.scale : 1;
 
 			context.meta.timeScale = scale;
+			context.meta.frameDelta = unscaled * scale;
 
 			adapter.cursor(context, displayData.cursor);
 
@@ -3923,21 +4987,131 @@
 
 			let live = { };
 
+			/*
+
+				A world far larger than a float can place (a planet a hundred
+				million kilometres from its star, a ship a metre from the ground)
+				names the entity the view is at: `world.origin`. The document keeps
+				every position as it is, in numbers with room for it, and each
+				entity at the top of the document is put where it is *relative to
+				that one* by subtraction done here, before the engine ever sees
+				a coordinate too big for it. What is near the viewer is then
+				exact, and what is far is far enough for the error not to show.
+
+			*/
+			let origin = null;
+			{
+				let world = context.resolved.components.find(component => component.type === "world");
+				let reference = world != null && world.data != null ? world.data.origin : null;
+
+				if(reference != null) {
+
+					let wanted = (Array.isArray(reference) ? reference : String(reference).split(".")).join(".");
+					let record = context.resolved.entities.find(entity => entity.path.join(".") === wanted);
+
+					if(record != null && Array.isArray(record.data.position))
+						origin = record.data.position;
+				}
+			}
+
+			context.meta.origin = origin != null ? origin.slice() : null;
+
+			/* the entities it applies to: those with no transform above them, however many packages they are filed under */
+			let byPath = new Map(), topMemo = new Map();
+
+			if(origin != null)
+				context.resolved.entities.forEach(entity => byPath.set(entity.path.join(" "), entity));
+
+			const isTop = record => {
+
+				let key = record.path.join(" ");
+
+				if(topMemo.has(key))
+					return topMemo.get(key);
+
+				let top = true;
+
+				for(let length = 1; length < record.path.length && top; length++) {
+
+					let above = byPath.get(record.path.slice(0, length).join(" "));
+
+					if(above != null && (Array.isArray(above.data.position) || above.data.rotation != null || above.data.scale != null))
+						top = false;
+				}
+
+				topMemo.set(key, top);
+
+				return top;
+			};
+
+			/*
+
+				Bodies and colliders are looked up for every entity every frame, so
+				they are indexed once here rather than searched for.
+
+			*/
+			let bodyOf = new Map(), colliderOf = new Map();
+
+			context.resolved.components.forEach(component => {
+
+				if(component.type === "body")
+					bodyOf.set(component.entityKey, component);
+				else if(component.type === "collider")
+					colliderOf.set(component.entityKey, component);
+			});
+
+			/*
+
+				Everything under an entity that is switched off is asleep: it cannot
+				be seen, it cannot move (nothing is moving it), and its transform
+				need not be read every frame. Once it has been set up, an entity
+				with a switched-off ancestor is left alone until the ancestor is
+				switched on. A world that keeps a whole island, or a building's
+				rooms, behind one switch costs nothing for them while it is off.
+
+			*/
+			let named = new Map();
+
+			context.resolved.entities.forEach(record =>
+				named.set(record.path.join(""), record.data.enabled === false)
+			);
+
+			let sleepMemo = new Map();
+
+			const above = path => {
+
+				if(path.length <= 1)
+					return false;
+
+				let parent = path.slice(0, -1);
+				let key = parent.join("");
+				let value = sleepMemo.get(key);
+
+				if(value === undefined) {
+
+					value = named.get(key) === true || above(parent);
+					sleepMemo.set(key, value);
+				}
+
+				return value;
+			};
+
 			context.resolved.entities.filter(
 				record => record.scene !== false
 			).forEach(record => {
 
 				live[record.key] = true;
 
+				if(context.meta.applied[record.key] !== undefined && above(record.path))
+					return;
+
 				let node = nodeFor(context, record.path);
 				let data = record.data;
 
-				let body = context.resolved.components.find(component =>
-					component.type === "body" &&
-					component.entityKey === record.key &&
-					(component.data.mode == null ||
-						component.data.mode === "dynamic")
-				);
+				let body = bodyOf.get(record.key);
+
+				if(body != null && !(body.data.mode == null || body.data.mode === "dynamic"))
+					body = null;
 
 				let driven = body != null && context.meta.physics;
 				let previous = context.meta.applied[record.key];
@@ -3945,10 +5119,7 @@
 					data.position, data.rotation, data.scale
 				]);
 
-				let collider = context.resolved.components.find(component =>
-					component.type === "collider" &&
-					component.entityKey === record.key
-				);
+				let collider = colliderOf.get(record.key);
 
 				let simulated = collider != null ?
 					context.instances[ace.identity(collider)]?.object : null;
@@ -4011,7 +5182,13 @@
 					*/
 					if(data.space === "camera" || data.space === "screen") {
 
-						let view = viewNode(context);
+						if(context.meta.viewFrame !== context.frame) {
+
+							context.meta.viewFrame = context.frame;
+							context.meta.viewCached = viewNode(context);
+						}
+
+						let view = context.meta.viewCached;
 
 						if(view != null && view !== node && node.parent !== view)
 							node.parent = view;
@@ -4024,22 +5201,46 @@
 						per-frame override that would fight the solver.
 
 					*/
-					if(Array.isArray(data.position))
-						node.position = vector(data.position);
+					if(previous !== signature) {
 
-					if(data.rotation != null)
-						node.rotationQuaternion = quaternion(data.rotation);
+						if(Array.isArray(data.position))
+							node.position = vector(data.position);
 
-					if(data.scale != null)
-						node.scaling = scale(data.scale);
+						if(data.rotation != null)
+							node.rotationQuaternion = quaternion(data.rotation);
+
+						if(data.scale != null)
+							node.scaling = scale(data.scale);
+					}
+				}
+
+				let shifted = false;
+
+				if(origin != null && !driven && isTop(record) && Array.isArray(data.position) &&
+					data.space !== "camera" && data.space !== "screen") {
+
+					node.position.set(
+						data.position[0] - origin[0],
+						data.position[1] - origin[1],
+						data.position[2] - origin[2]
+					);
+
+					shifted = true;
 				}
 
 				context.meta.applied[record.key] = signature;
 
 				node.setEnabled(data.enabled !== false);
 
+				/*
+
+					A node that has not been moved is not forced to recompute: Babylon
+					still notices when an ancestor has, and the work is otherwise spent
+					every frame on every entity in the document.
+
+				*/
 				if(node.computeWorldMatrix != null)
-					node.computeWorldMatrix(true);
+					node.computeWorldMatrix(previous !== signature || shifted);
 
 				/*
 
@@ -4085,7 +5286,8 @@
 					Queries and bounds must still be correct in that case.
 
 				*/
-				if(node.getChildMeshes != null) {
+				if(node.getChildMeshes != null &&
+					(previous !== signature || context.meta.canvas == null)) {
 
 					node.getChildMeshes().forEach(
 						mesh => mesh.computeWorldMatrix(true)
@@ -4140,20 +5342,42 @@
 			input.locked = owner != null &&
 				owner.pointerLockElement === surface;
 
-			if(mode === "locked" && !input.locked && !context.meta.lockPending) {
+			/*
+
+				The mode the document wants is remembered, so that a click made
+				while a menu is open does not capture the pointer, and one made
+				on "resume" does.
+
+			*/
+			context.meta.cursorMode = mode;
+
+			const request = () => {
+
+				if(input.locked || context.meta.cursorMode !== "locked")
+					return;
+
+				let promise = surface.requestPointerLock();
+
+				if(promise != null && promise.catch != null)
+					promise.catch(() => { });
+			};
+
+			if(!context.meta.lockPending) {
 
 				context.meta.lockPending = true;
 
-				surface.addEventListener("click", () => {
+				surface.addEventListener("click", request);
+			}
 
-					if(input.locked)
-						return;
+			/* A document that asks for the lock just after a click may have it at once. */
+			let activation = root.navigator != null ? root.navigator.userActivation : null;
 
-					let request = surface.requestPointerLock();
+			if(mode === "locked" && !input.locked && activation != null &&
+				activation.isActive && root.performance.now() -
+				(context.meta.lockAsked != null ? context.meta.lockAsked : -1e9) > 1500) {
 
-					if(request != null && request.catch != null)
-						request.catch(() => { });
-				});
+				context.meta.lockAsked = root.performance.now();
+				request();
 			}
 
 			if(mode !== "locked" && input.locked && owner.exitPointerLock != null)
@@ -4239,12 +5463,37 @@
 				ownsEngine = true;
 			}
 
+			/*
+
+				A depth buffer keeps most of its precision for what is close, and a
+				world a few centimetres from the camera and sixteen kilometres to the
+				horizon spends it all there: two surfaces a metre apart a kilometre
+				away are one depth to the buffer, and flicker as one drawn through the
+				other. Reversing it (near is 1, far is 0, in floating point) spreads
+				the precision evenly across the whole range.
+
+			*/
+			if(hasDOM && options.reverseDepth !== false && engine.getCaps != null) {
+
+				try { engine.useReverseDepthBuffer = true; } catch(error) { /* an old GPU */ }
+			}
+
 			let scene = new BABYLON.Scene(engine);
 
 			/* Standard 2.2.3: right-handed, Y-up. Babylon defaults to left. */
 			scene.useRightHandedSystem = true;
 
 			scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
+			/*
+
+				Overlays (a heads-up display, a menu) are drawn in group 1 on a cleared depth buffer, so
+				that a wall between the viewer and the display does not hide it, and the display can be
+				put far from the camera and made large: far from the world's origin a position is only
+				good to a few millimetres, which at a metre is a visible shiver and at ten metres is not.
+
+			*/
+			scene.setRenderingAutoClearDepthStencil(1, true, true, true);
 
 			let context = ace.context(data, {
 				engine,
@@ -4374,6 +5623,9 @@
 	ace.register(operators);
 
 	ace.adapter = adapter;
+
+	/* What was loaded before the adapter existed is started now. */
+	(ace.deferred || []).splice(0).forEach(extension => extension());
 
 	/* The original entry point, preserved. */
 	ace.run = adapter.run;

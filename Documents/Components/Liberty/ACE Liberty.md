@@ -386,6 +386,7 @@ opaque white material is used. Materials are shared across entities by reference
 | cutoff | number | 0.5 | Alpha threshold, mask only |
 | side | string | "front" | "front", "back", "double" |
 | region | vec4 | [0,0,1,1] | `[u, v, width, height]`: the window of the picture that is shown, v measured from the bottom. Atlas and sprite-sheet addressing; changing it pans and zooms the picture |
+| filter | string | "linear" | `"nearest"` shows each picture exactly as drawn: the nearest sample, never a blend of two, and no smaller copies of it; the picture is clamped at its edges rather than repeated. Pixel art. Applies to the pictures named by `maps` by location; a picture named by reference keeps the filter of its own texture (§2.3.6) |
 | tiling | vec2 | [1,1] | |
 | offset | vec2 | [0,0] | |
 | maps | object | — | `{ base, normal, metallic, roughness, emissive, occlusion }` |
