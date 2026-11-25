@@ -13,15 +13,17 @@
 
 		<div id="stage"></div>
 
-		<script src="https://cdn.babylonjs.com/babylon.js"></script>
-		<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-		<script src="https://cdn.babylonjs.com/cannon.js"></script>
-		<script src="ace.js"></script>
-		<script src="aceOperators.js"></script>
+		<script src="https://cdn.babylonjs.com/v7.54.3/babylon.js"></script>
+		<script src="https://cdn.babylonjs.com/v7.54.3/loaders/babylonjs.loaders.min.js"></script>
+		<script src="scripts/ace.js"></script>
+		<script src="scripts/aceHavok.js"></script>
+		<script src="scripts/aceOperators.js"></script>
+		<script src="scripts/aceSpace.js"></script>
+		<script src="scripts/aceWorld.js"></script>
 
 		<script>
 
-			fetch("gameFile.json").then(response => response.json()).then(scene => {
+			fetch("game.json").then(response => response.json()).then(scene => {
 				ace.run("#stage", scene);
 			});
 
