@@ -2190,6 +2190,7 @@
 				};
 
 				let loaded = true;
+				let pendingVideo = false;
 
 				Object.keys(
 					isObject(data.maps) ? data.maps : { }
@@ -2239,8 +2240,19 @@
 
 						if(object.owned[slot] == null) {
 
+							/* A moving picture is a video file, played over and over without sound. */
+							if(/\.(webm|mp4|ogv|m4v)(\?.*)?$/i.test(value)) {
+
+								object.owned[slot] = new BABYLON.VideoTexture(
+									instance.path.join(".") + "." + slot, [value], context.meta.scene,
+									false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+									{ autoPlay: true, loop: true, muted: true, autoUpdateTexture: true }
+								);
+
+								object.owned[slot].video.playsInline = true;
+
 							/* Pixel art is sampled as it is: no blending of neighbours, and no smaller copies. */
-							if(data.filter === "nearest") {
+							} else if(data.filter === "nearest") {
 
 								object.owned[slot] = new BABYLON.Texture(
 									value, context.meta.scene, true, true,
@@ -2259,6 +2271,13 @@
 						}
 
 						texture = object.owned[slot];
+
+						/* Until a video has a picture to show it is not shown (what is behind it is), and it is not yet loaded. */
+						if(texture.video != null && texture.video.readyState < 2 && !texture.video.error) {
+
+							loaded = false;
+							pendingVideo = true;
+						}
 					}
 
 					if(texture != null) {
@@ -2295,6 +2314,9 @@
 						}
 					}
 				});
+
+				if(pendingVideo)
+					material.alpha = 0;
 
 				/* Optional refinements of the surface. */
 				if(data.zOffset != null)

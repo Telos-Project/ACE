@@ -306,6 +306,7 @@
 		uniform vec3 grassTint;
 		uniform vec4 rect;
 		uniform vec4 tiles;
+		uniform vec2 fade;
 		uniform sampler2D splat, forestMap;
 		uniform sampler2D grassD, grassN, dirtD, dirtN, rockD, rockN, sandD, sandN, snowD, snowN;
 
@@ -393,7 +394,12 @@
 			col = pow(col, vec3(1.0 / 2.2));
 			col = mix(col, fogColor, clamp(fog, 0.0, 1.0));
 
-			gl_FragColor = vec4(col, 1.0);
+			// far enough away the ground is less and less there, and then not there at all
+			float seen = fade.y > fade.x ? 1.0 - smoothstep(fade.x, fade.y, dist) : 1.0;
+
+			if (seen <= 0.004) discard;
+
+			gl_FragColor = vec4(col, seen);
 		}
 	`;
 
@@ -426,7 +432,7 @@
 				uniforms: [
 					"world", "viewProjection", "camPos", "sunDir", "sunColor",
 					"skyColor", "groundColor", "fogColor", "fogDensity", "exposure", "grassTint",
-					"rect", "tiles"
+					"rect", "tiles", "fade"
 				],
 				samplers: [
 					"splat", "forestMap", "grassD", "grassN", "dirtD", "dirtN", "rockD", "rockN",
@@ -436,6 +442,8 @@
 		);
 
 		material.backFaceCulling = false;
+		material.needAlphaBlending = () => material.blended === true;
+		material.forceDepthWrite = true;      // translucent, it is still a solid surface: the ground behind it does not show through the ground in front
 
 		const texture = (url, repeat) => {
 
@@ -476,6 +484,8 @@
 		let tile = data.tile != null ? data.tile : 6;
 
 		material.setColor3("grassTint", H.color3(data.grassTint, [1, 1, 1]));
+		material.setVector2("fade", Array.isArray(data.fade) && data.fade.length > 1 ?
+			new BABYLON.Vector2(data.fade[0], data.fade[1]) : new BABYLON.Vector2(0, 0));
 		material.setVector4("rect", new BABYLON.Vector4(0, 0, grid.size[0], grid.size[1]));
 		material.setVector4("tiles", new BABYLON.Vector4(
 			tile,
@@ -655,6 +665,7 @@
 
 				object.material = built.material;
 				object.owned = built.owned;
+				object.material.blended = false;
 
 				for(let row = 0; row < down; row++) {
 
@@ -723,6 +734,24 @@
 			material.setFloat("fogDensity",
 				scene.fogMode === BABYLON.Scene.FOGMODE_EXP2 ? scene.fogDensity : 0);
 			material.setFloat("exposure", scene.imageProcessingConfiguration.exposure);
+
+			/* Some of it is further than the fade begins: from here on it is drawn translucent, nearer it is not. */
+			if(Array.isArray(data.fade) && data.fade.length > 1 && object.grid != null) {
+
+				let centre = object.node.absolutePosition;
+				let reach = Math.hypot(
+					Math.abs(eye.x - centre.x) + object.grid.size[0] / 2,
+					Math.abs(eye.z - centre.z) + object.grid.size[1] / 2
+				);
+
+				object.blended = reach > data.fade[0];
+
+			} else {
+
+				object.blended = false;
+			}
+
+			material.blended = object.blended;
 
 			let sun = null;
 			let sky = null;
@@ -851,6 +880,7 @@
 					chunk.mesh.parent = object.node;
 					chunk.mesh.material = material;
 					chunk.mesh.receiveShadows = false;
+					chunk.mesh.alphaIndex = 1;      // translucent, it is drawn before the sea (which is 5) and after what is behind it
 
 					H.own(chunk.mesh, instance.entityKey);
 				}
@@ -1865,6 +1895,8 @@
 		uniform vec4 hinfo;
 		uniform vec4 rect2;
 		uniform vec4 hinfo2;
+		uniform vec2 fadeA, fadeB;
+		uniform float under;
 		uniform sampler2D heightMap, heightMap2, normA, normB;
 		uniform samplerCube sky;
 
@@ -1901,6 +1933,17 @@
 			return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 		}
 
+		// how much of an island is to be seen from here (the ground itself fades out by the same rule, far off): 1 whole, 0 gone
+		float seenAt(vec2 xz, float dist) {
+			vec2 uv = vec2(0.5 + (xz.x - rect.x) / rect.z, 0.5 + (xz.y - rect.y) / rect.w);
+			if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0)
+				return fadeA.y > fadeA.x ? 1.0 - smoothstep(fadeA.x, fadeA.y, dist) : 1.0;
+			vec2 uw = vec2(0.5 + (xz.x - rect2.x) / rect2.z, 0.5 + (xz.y - rect2.y) / rect2.w);
+			if (rect2.z > 0.0 && uw.x >= 0.0 && uw.y >= 0.0 && uw.x <= 1.0 && uw.y <= 1.0)
+				return fadeB.y > fadeB.x ? 1.0 - smoothstep(fadeB.x, fadeB.y, dist) : 1.0;
+			return 1.0;
+		}
+
 		void main(void) {
 			vec3 toEye = camPos - vWorld;
 			float dist = length(toEye);
@@ -1923,7 +1966,21 @@
 				// ---- from above
 				float elev = elevAt(xz);
 				float depth = level - elev;
-				if (depth < -0.3) discard;
+				float seen = seenAt(xz, dist);
+
+				if (under > 0.5) {
+
+					// the sheet laid under the islands: open sea, where there is land that is fading out, so that what shows through it is sea
+					if (depth > 0.12 || seen > 0.995) discard;
+					depth = 70.0;
+
+				} else {
+
+					if (depth < -0.3) discard;
+
+					// far off, the shoals and the surf of an island go with it
+					depth = mix(70.0, depth, seen);
+				}
 
 				float shoal = 1.0 - exp(-max(depth, 0.0) * 0.07);
 				vec3 body = mix(shallowColor, deepColor, shoal);
@@ -1952,6 +2009,7 @@
 				alpha *= smoothstep(-0.3, 0.12, depth);
 			} else {
 				// ---- from below: a window of sky, then only water
+				if (under > 0.5) discard;
 				vec3 up = -V;
 				up.xz += slope * 0.35;
 				up = normalize(up);
@@ -2011,7 +2069,7 @@
 					uniforms: [
 						"world", "viewProjection", "camPos", "sunDir", "sunColor", "fogColor",
 						"fogDensity", "time", "level", "shallowColor", "deepColor", "underColor",
-						"rect", "hinfo", "rect2", "hinfo2"
+						"rect", "hinfo", "rect2", "hinfo2", "fadeA", "fadeB", "under"
 					],
 					samplers: ["heightMap", "heightMap2", "normA", "normB", "sky"]
 				}
@@ -2021,6 +2079,7 @@
 			material.disableDepthWrite = true;
 			material.needAlphaBlending = () => true;
 			mesh.material = material;
+			material.setFloat("under", 0);
 
 			let layers = isObject(data.layers) ? data.layers : { };
 			let terrain = isObject(data.terrain) ? data.terrain : { };
@@ -2083,7 +2142,7 @@
 
 					texture.wrapU = texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 					owned.push(texture);
-					material.setTexture(sampler, texture);
+					[material].concat((object.sheets || []).map(entry => entry.material)).forEach(each => each.setTexture(sampler, texture));
 					sized.push(decoded.exact);
 				}).catch(error => context.errors.push({ type: "water", hook: sampler, message: error.message }));
 			};
@@ -2126,7 +2185,49 @@
 			material.setColor3("deepColor", H.color3(data.deep, [0.01, 0.12, 0.24]));
 			material.setColor3("underColor", H.color3(data.under, [0.02, 0.2, 0.32]));
 
+			const span = value => Array.isArray(value) && value.length > 1 ? new BABYLON.Vector2(value[0], value[1]) : new BABYLON.Vector2(0, 0);
+
+			material.setVector2("fadeA", span(terrain.fade));
+			material.setVector2("fadeB", second != null ? span(second.fade) : span(null));
+
 			object.mesh = mesh; object.material = material; object.owned = owned; object.node = node;
+			object.sheets = [];
+
+			/*
+
+				Where an island fades with distance, the sea is laid under it as well: a flat sheet of open sea over the whole of the island's map, drawn
+				before the island is, so that what the fading ground lets through is sea and not the sky behind it.
+
+			*/
+			const sheet = (map, index) => {
+
+				if(map == null || !Array.isArray(map.fade) || map.fade.length < 2)
+					return;
+
+				node.computeWorldMatrix(true);
+
+				let at = Array.isArray(map.center) ? map.center : [0, 0];
+				let flat = BABYLON.MeshBuilder.CreateGround(name + ".sheet" + index, { width: map.size, height: map.size, subdivisions: 1 }, scene);
+
+				flat.parent = node;
+				flat.position.set(at[0] - node.absolutePosition.x, 0.02, at[1] - node.absolutePosition.z);
+				flat.isPickable = false;
+				flat.alphaIndex = 0;
+				H.own(flat, instance.entityKey);
+
+				/* a copy of the sea's own material that is told it is the sheet; its textures and colours are the same ones */
+				let copy = material.clone(name + ".sheet" + index + ".material");
+
+				copy.backFaceCulling = false;
+				copy.disableDepthWrite = true;
+				copy.needAlphaBlending = () => true;
+				copy.setFloat("under", 1);
+				flat.material = copy;
+				object.sheets.push({ mesh: flat, material: copy });
+			};
+
+			sheet(terrain.fade != null ? Object.assign({ center: middle, size: extent }, { fade: terrain.fade }) : null, 0);
+			sheet(second, 1);
 
 			return object;
 		},
@@ -2141,22 +2242,24 @@
 				return;
 
 			let env = environment(scene);
-			let material = object.material;
 
 			object.node.computeWorldMatrix(true);
 
-			material.setVector3("camPos", camera.globalPosition);
-			material.setVector3("sunDir", env.sunDir);
-			material.setColor3("sunColor", env.sunColor);
-			material.setColor3("fogColor", env.fogColor);
-			material.setFloat("fogDensity", env.fogDensity);
-			material.setFloat("time", (root.performance.now() % 3600000) / 1000);
-			material.setFloat("level", object.node.absolutePosition.y);
+			[object.material].concat(object.sheets.map(entry => entry.material)).forEach(material => {
 
-			let sky = scene.environmentTexture;
+				material.setVector3("camPos", camera.globalPosition);
+				material.setVector3("sunDir", env.sunDir);
+				material.setColor3("sunColor", env.sunColor);
+				material.setColor3("fogColor", env.fogColor);
+				material.setFloat("fogDensity", env.fogDensity);
+				material.setFloat("time", (root.performance.now() % 3600000) / 1000);
+				material.setFloat("level", object.node.absolutePosition.y);
 
-			if(sky != null)
-				material.setTexture("sky", sky);
+				let sky = scene.environmentTexture;
+
+				if(sky != null)
+					material.setTexture("sky", sky);
+			});
 		},
 
 		onChange: (context, instance) => {
@@ -2168,6 +2271,7 @@
 		onDestroy: (context, instance) => {
 
 			instance.object.disposed = true;
+			instance.object.sheets.forEach(entry => { entry.mesh.dispose(); entry.material.dispose(); });
 			instance.object.owned.forEach(texture => texture.dispose());
 			instance.object.material.dispose();
 			instance.object.mesh.dispose();
@@ -2811,7 +2915,8 @@
 
 	};
 
-	if(root.ace.adapter != null)
+	/* (`ace.adapter` is an empty object until the operators make the real one: it is the helpers that say it is there) */
+	if(root.ace.adapter != null && root.ace.adapter.helpers != null)
 		extension();
 	else
 		(root.ace.deferred = root.ace.deferred || []).push(extension);

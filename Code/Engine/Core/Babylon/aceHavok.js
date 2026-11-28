@@ -9,6 +9,9 @@
 		           swept through the world by the physics engine's own character
 		           controller, so it stops at, and slides along, whatever is there,
 		           however fast it is asked to go and however long the frame was.
+		obstacle   A body of its own for something that moves (a person, a fish,
+		           a monster): a sphere or a capsule that goes wherever its entity
+		           goes, which the character cannot pass through.
 
 	The world it collides with is not authored. It is made, near the character
 	and only there, from what the document already says is solid:
@@ -83,6 +86,8 @@
 			terrains: new Map(),
 			meshes: new Map(),
 			solids: new Map(),
+			obstacles: new Map(),
+			centre: null,
 			ticked: -1000,
 			pending: 0,
 			failed: 0
@@ -528,6 +533,8 @@
 			let lead = controller.getVelocity();
 			let ahead = new BABYLON.Vector3(centre.x + lead.x * 0.5, centre.y + lead.y * 0.5, centre.z + lead.z * 0.5);
 
+			w.centre = centre.clone();
+
 			/*
 
 				After a teleport the world round the character is made before it
@@ -576,7 +583,7 @@
 
 			state.position = [at.x, at.y - half, at.z];
 			state.velocity = [speed.x, speed.y, speed.z];
-			state.bodies = w.meshes.size + w.solids.size + w.terrains.size;
+			state.bodies = w.meshes.size + w.solids.size + w.terrains.size + w.obstacles.size;
 
 			ace.setState(context, instance.record, state);
 		},
@@ -584,11 +591,125 @@
 		onDestroy: () => { }
 	};
 
-	ace.register([character]);
+	/*
+
+		An obstacle: a body for something that moves. Where a mesh or a patch of ground is made solid once, a creature is not where it was a moment ago: this body is
+		put where its entity is, every frame, as a thing that is carried and not pushed, and the character is stopped by it as by a wall. It exists only
+		while the creature is switched on and within reach of the character.
+
+	*/
+	const obstacle = {
+
+		type: "obstacle",
+		order: 37,
+
+		onCreate: (context, instance) => ({
+			node: H.nodeFor(context, instance.entity), id: instance.id, entry: null, shapeKey: ""
+		}),
+
+		onChange: (context, instance) => {
+
+			obstacle.release(context, instance.object);
+		},
+
+		release: (context, object) => {
+
+			let w = context.meta.havokWorld;
+
+			if(object.entry != null) {
+
+				drop(object.entry);
+
+				if(w != null)
+					w.obstacles.delete(object.id);
+
+				object.entry = null;
+			}
+		},
+
+		onUpdate: (context, instance) => {
+
+			let w = world(context);
+			let object = instance.object;
+			let data = instance.data;
+
+			if(w == null || w.centre == null)
+				return;
+
+			let radius = Math.max(0.05, data.radius != null ? data.radius : 0.5);
+			let at = object.node.absolutePosition;
+
+			object.node.computeWorldMatrix(true);
+
+			let offset = Array.isArray(data.offset) ? data.offset : [0, 0, 0];
+			let reach = BABYLON.Vector3.Distance(at, w.centre) - radius - Math.hypot(offset[0], offset[1], offset[2]);
+
+			if(!object.node.isEnabled(true) || data.enabled === false || reach > FAR || (object.entry == null && reach > NEAR)) {
+
+				obstacle.release(context, object);
+
+				return;
+			}
+
+			let scene = context.meta.scene;
+
+			if(object.entry == null) {
+
+				let centre = new BABYLON.Vector3(offset[0], offset[1], offset[2]);
+				let shape;
+
+				if(data.shape === "capsule") {
+
+					let half = Math.max(0, (data.height != null ? data.height : radius * 4) / 2 - radius);
+					let along = data.axis === "x" ? new BABYLON.Vector3(1, 0, 0) :
+						data.axis === "z" ? new BABYLON.Vector3(0, 0, 1) : new BABYLON.Vector3(0, 1, 0);
+
+					shape = new BABYLON.PhysicsShapeCapsule(
+						centre.subtract(along.scale(half)), centre.add(along.scale(half)), radius, scene
+					);
+
+				} else {
+
+					shape = new BABYLON.PhysicsShapeSphere(centre, radius, scene);
+				}
+
+				let node = new BABYLON.TransformNode("havok.obstacle", scene);
+
+				node.rotationQuaternion = BABYLON.Quaternion.Identity();
+				node.position.copyFrom(at);
+
+				let body = new BABYLON.PhysicsBody(node, BABYLON.PhysicsMotionType.ANIMATED, false, scene);
+
+				body.shape = shape;
+				object.entry = { body, shape, node };
+				w.obstacles.set(object.id, object.entry);
+			}
+
+			let entry = object.entry;
+			let turn = object.node.absoluteRotationQuaternion;
+
+			/* carried, with a velocity, so that something that walks into the character is a thing in motion and not a thing that appeared */
+			if(turn != null)
+				entry.node.rotationQuaternion.copyFrom(turn);
+
+			entry.node.position.copyFrom(at);
+
+			if(typeof entry.body.setTargetTransform === "function")
+				entry.body.setTargetTransform(entry.node.position, entry.node.rotationQuaternion);
+		},
+
+		onDestroy: (context, instance) => {
+
+			obstacle.release(context, instance.object);
+		}
+	};
+
+	ace.register([character, obstacle]);
 
 	};
 
-	if(root.ace.adapter != null)
+	/* (`ace.adapter` is an empty object until the operators make the real one: it is the helpers that say it is there) */
+	if(root.ace.adapter != null && root.ace.adapter.helpers != null)
 		extension();
 	else
 		(root.ace.deferred = root.ace.deferred || []).push(extension);

@@ -395,11 +395,18 @@ opaque white material is used. Materials are shared across entities by reference
 Each value of `maps` is either a literal location string or a texture reference of the form
 `{ "texture": <element path> }`.
 
+A literal location that names a video file (`.mp4`, `.webm`, `.ogv` or `.m4v`) is a moving picture: it is
+played without sound, from the start, and again whenever it ends. It is a map like any other, so a
+plane with an unlit material whose base map is a video is a screen. Until the video has a picture to
+show, the surface is not shown at all (what is behind it is), and `loaded` is false; if the video
+cannot be played the surface stays unshown and `loaded` becomes true, so that a still picture placed
+behind it is what is seen.
+
 **state**
 
 | Field | Type | Meaning |
 |---|---|---|
-| loaded | boolean | All referenced maps have resolved |
+| loaded | boolean | All referenced maps have resolved; a video has a picture to show, or cannot be played |
 
 ### 2.3.6 - texture
 
@@ -864,6 +871,7 @@ A terrain is solid to a `character` (§2.3.26) while its entity is switched on.
 | rockTile | number | 9 | Metres per repeat of the rock layer, which is projected along all three axes so cliffs do not stretch |
 | blend | number | 320 | Distance at which a layer has faded to its average colour |
 | grassTint | color | [1,1,1] | Multiplies the grass layer |
+| fade | vec2 | — | `[from, to]` in metres: the ground is more and more transparent from `from` away from the viewer, and is not there at `to`. The distance is that to each part of the ground, so the far side of a landscape goes before the near side. Absent, the ground is always whole. A water (§2.3.24) that is told the same distances (its `terrain.fade`) lays open sea where the ground has gone |
 
 Heights are exact only if the image is a plain 8-bit PNG: a height is two bytes, one step of the high byte is metres of ground, and a picture that has been through a browser's colour handling can differ in those bytes. The water (§2.3.24) reads the same heights.
 
@@ -1019,8 +1027,14 @@ wide as the refraction of water allows, and beyond it `under`. Both sides take t
 | segments | integer | 300 | Squares along a side |
 | shallow, deep, under | color | | Display-space colours: over shoals, in deep water, and the water as seen from inside |
 | layers | object | | `{ a, b }`: two tileable normal maps |
-| terrain | object | | `{ height, size, elevation, resolution, floor, center }`: the height image, how wide it is, what 0 and 1 mean, its side in samples, the level of the sea floor past its edge, and the world x, z the image is centred on (default 0, 0) |
-| terrain2 | object | | A second image of the same kind (`{ height, size, elevation, resolution, center }`) for a second island; the depth of water is read from whichever covers the point, and from the floor level where neither does |
+| terrain | object | | `{ height, size, elevation, resolution, floor, center, fade }`: the height image, how wide it is, what 0 and 1 mean, its side in samples, the level of the sea floor past its edge, and the world x, z the image is centred on (default 0, 0). `fade` is `[from, to]`, the same distances as the terrain's own (§2.3.18) |
+| terrain2 | object | | A second image of the same kind (`{ height, size, elevation, resolution, center, fade }`) for a second island; the depth of water is read from whichever covers the point, and from the floor level where neither does |
+
+Where land is above the sea, the sea is not drawn: that is how an island stands out of it. Where an
+island has a `fade`, the sea takes the island's place as the island fades: over the land, and over the
+shoals and the surf round it, the sea is open sea by the time the island is gone, so that nothing of
+the island's shape is left to see through to what is behind. The distances are measured from the
+viewer to the fragment being drawn, so that the sea and the ground agree at every point.
 
 ### 2.3.25 - clouds
 
@@ -1083,7 +1097,8 @@ sees where the body now is.
 - a terrain, while its entity is switched on, as the surface its heights describe;
 - any mesh whose entity is tagged `solid` or `ground`, as its triangles in the world;
 - a person (a mesh with a skeleton) as a capsule round their bounds, standing where they stand;
-- the trunks and crowns of a scatter that has `collide`, for the instances nearest.
+- the trunks and crowns of a scatter that has `collide`, for the instances nearest;
+- anything that has an `obstacle` (§2.3.30), where it is now.
 
 Nothing about this is authored, and an entity that is switched off is not there. After a teleport
 it is all solid before the body is released; in flight it is made ahead of the body, nearest
@@ -1164,6 +1179,31 @@ is not, so that the same document is a ball seen from another star and a place t
 | up | vec3 | Away from the centre, in the planet's own frame (it turns with the planet) |
 | latitude, longitude | number | In radians |
 | chunks, queued | integer | How many pieces are made, and how many are wanted and not yet made |
+
+### 2.3.30 - obstacle
+
+A body for something that moves: a person, a fish, a monster. Meshes and ground are made solid once,
+where they are; a creature is not where it was a moment ago, and an obstacle goes where its entity
+goes, every frame, so that a `character` (§2.3.26) is stopped by it as by a wall and slides along it.
+It is carried and not pushed: nothing the character does moves it.
+
+It is there only while its entity is switched on and within reach of the character, and it costs
+nothing otherwise. It takes the entity's rotation, but not its scale: `radius`, `height` and `offset`
+are in metres.
+
+**data**
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| shape | string | "sphere" | `"sphere"` or `"capsule"` |
+| radius | number | 0.5 | Of the sphere, or of the capsule's round ends and its length |
+| height | number | 4 × radius | End to end, of a capsule |
+| axis | string | "y" | The way a capsule lies, in the entity's own frame: `"x"`, `"y"` or `"z"` |
+| offset | vec3 | [0,0,0] | Where the middle of it is, in the entity's own frame |
+| enabled | boolean | true | False takes it away without taking the component away |
+
+An obstacle is not a `collider` (§2.3.9): it is not part of a rigid body's physics, makes no contacts
+and answers to nothing but a `character`.
 
 ## 2.4 - Scripts
 

@@ -1827,7 +1827,8 @@
 
 	};
 
-	if(root.ace.adapter != null)
+	/* (`ace.adapter` is an empty object until the operators make the real one: it is the helpers that say it is there) */
+	if(root.ace.adapter != null && root.ace.adapter.helpers != null)
 		extension();
 	else
 		(root.ace.deferred = root.ace.deferred || []).push(extension);
